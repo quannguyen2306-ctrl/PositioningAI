@@ -31,7 +31,6 @@ export function ResultsPage() {
     (message) => setError(message)
   )
 
-
   // Loading state — analysis in progress
   if (!results && isLoading) {
     return (
