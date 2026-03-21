@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base resets ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: #0d0d10;
+  color: #f0f0f4;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0d10;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a32;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a46;
+}
+
+/* ─── Custom range slider ─────────────────────────────────────────────────── */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #2a2a32;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #7c5cfc 0%,
+    #7c5cfc var(--slider-fill, 50%),
+    #2a2a32 var(--slider-fill, 50%),
+    #2a2a32 100%
+  );
+}
+
+input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #2a2a32;
+}
+
+input[type='range']::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: #7c5cfc;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #7c5cfc;
+  cursor: pointer;
+  margin-top: -6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #7c5cfc;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease;
+}
+
+input[type='range']:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(124, 92, 252, 0.2);
+}
+
+input[type='range']:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+input[type='range']:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+/* ─── Utility layers ──────────────────────────────────────────────────────── */
+@layer components {
+  /* Card surface */
+  .card {
+    @apply bg-surface border border-subtle rounded-2xl shadow-card;
+  }
+
+  .card-raised {
+    @apply bg-raised border border-subtle rounded-xl shadow-card;
+  }
+
+  /* Form input base */
+  .input-base {
+    @apply w-full bg-raised border border-subtle rounded-md px-3.5 py-2.5
+           text-md text-text-primary font-body placeholder:text-text-muted
+           outline-none transition-all duration-150
+           focus:border-accent focus:shadow-focus-ring
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Input label */
+  .input-label {
+    @apply font-display font-semibold text-xs uppercase tracking-widest text-text-secondary mb-1.5 block;
+  }
+
+  /* Accent button */
+  .btn-accent {
+    @apply bg-accent text-white font-display font-semibold text-md rounded-md
+           px-4 py-3 w-full cursor-pointer border-none outline-none
+           transition-all duration-150
+           hover:-translate-y-px hover:shadow-accent-glow hover:bg-[#6b4ef0]
+           active:translate-y-0 active:shadow-none
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none;
+  }
+
+  /* Pill button */
+  .btn-pill {
+    @apply rounded-full px-4 py-1.5 font-display font-semibold text-sm
+           cursor-pointer border-none outline-none transition-all duration-150;
+  }
+
+  /* Nav item */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-2.5 cursor-pointer
+           font-display font-semibold text-base text-text-secondary
+           rounded-r-lg transition-all duration-150
+           hover:bg-white/[0.03];
+  }
+
+  .nav-item-active {
+    @apply bg-accent/10 text-text-primary border-l-[3px] border-accent;
+  }
+
+  /* Score badge */
+  .score-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-body font-medium;
+  }
+
+  .score-badge-high {
+    @apply bg-score-high/10 text-score-high border border-score-high/25;
+  }
+
+  .score-badge-mid {
+    @apply bg-score-mid/10 text-score-mid border border-score-mid/25;
+  }
+
+  .score-badge-low {
+    @apply bg-score-low/10 text-score-low border border-score-low/25;
+  }
+}
+
+/* ─── Collapsible Advanced Settings ──────────────────────────────────────── */
+.advanced-settings {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.advanced-settings.open {
+  max-height: 800px;
+}
+
+/* ─── Dashboard section crossfade ────────────────────────────────────────── */
+.section-panel {
+  animation: fade-in 0.12s ease-out forwards;
+}

@@ -7,6 +7,7 @@ interface AnalysisContextType {
   results: AnalysisResult | null
   progress: ProgressEvent | null
   error: string | null
+  analysisRequest: AnalysisRequest | null
   startAnalysis: (req: AnalysisRequest) => Promise<string>
   clearSession: () => void
   setProgress: (progress: ProgressEvent) => void
@@ -21,12 +22,14 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [results, setResults] = useState<AnalysisResult | null>(null)
   const [progress, setProgress] = useState<ProgressEvent | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [analysisRequest, setAnalysisRequest] = useState<AnalysisRequest | null>(null)
 
   const handleStartAnalysis = useCallback(async (req: AnalysisRequest): Promise<string> => {
     try {
       setError(null)
       setProgress(null)
       setResults(null)
+      setAnalysisRequest(req)
 
       const response = await apiStartAnalysis(req)
       setSessionId(response.session_id)
@@ -43,6 +46,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     setResults(null)
     setProgress(null)
     setError(null)
+    setAnalysisRequest(null)
   }, [])
 
   const value: AnalysisContextType = {
@@ -50,6 +54,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     results,
     progress,
     error,
+    analysisRequest,
     startAnalysis: handleStartAnalysis,
     clearSession: handleClearSession,
     setProgress,

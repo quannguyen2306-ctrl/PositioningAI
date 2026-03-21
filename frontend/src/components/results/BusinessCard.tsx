@@ -7,65 +7,56 @@ interface BusinessCardProps {
 
 export function BusinessCard({ business, competitors }: BusinessCardProps) {
   return (
-    <div style={{ padding: '20px', width: '100%' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h2
-          style={{
-            fontSize: '28px',
-            fontWeight: 'bold',
-            color: '#c9d1d9',
-            marginBottom: '8px',
-          }}
-        >
+    <div className="w-full p-5">
+      {/* Business Header */}
+      <div className="mb-6">
+        <h2 className="font-display text-2xl font-bold text-text-primary mb-2">
           {business.business_name}
         </h2>
-        <p style={{ color: '#8b949e', fontSize: '14px' }}>
+        <p className="text-text-muted text-sm">
           {business.industry} • {business.location}
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+      {/* Target Audience & Search Query */}
+      <div className="grid grid-cols-2 gap-5 mb-6">
         <div>
-          <label style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase' }}>
+          <label className="input-label">
             Target Audience
           </label>
-          <p style={{ color: '#c9d1d9', marginTop: '4px' }}>{business.target_audience}</p>
+          <p className="text-text-primary text-sm mt-1">{business.target_audience}</p>
         </div>
 
         <div>
-          <label style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase' }}>
+          <label className="input-label">
             Search Query
           </label>
-          <p style={{ color: '#c9d1d9', marginTop: '4px', wordBreak: 'break-word' }}>
+          <p className="text-text-primary text-sm mt-1 break-words">
             "{business.search_query}"
           </p>
         </div>
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase' }}>
+      {/* Value Proposition */}
+      <div className="mb-6">
+        <label className="input-label">
           Value Proposition
         </label>
-        <p style={{ color: '#c9d1d9', marginTop: '8px', lineHeight: '1.6' }}>
+        <p className="text-text-primary text-sm mt-2 leading-relaxed">
           {business.unique_value_prop}
         </p>
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase' }}>
+      {/* Products & Services */}
+      <div className="mb-6">
+        <label className="input-label">
           Products & Services
         </label>
-        <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div className="flex flex-wrap gap-2 mt-2">
           {business.products_services.map((product, idx) => (
             <span
               key={idx}
-              style={{
-                padding: '4px 12px',
-                backgroundColor: '#1f6feb',
-                color: '#fff',
-                borderRadius: '12px',
-                fontSize: '12px',
-              }}
+              className="px-3 py-1 bg-accent text-white rounded-full text-xs font-semibold"
             >
               {product}
             </span>
@@ -73,30 +64,19 @@ export function BusinessCard({ business, competitors }: BusinessCardProps) {
         </div>
       </div>
 
+      {/* Competitors Analyzed */}
       <div>
-        <label style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase' }}>
+        <label className="input-label">
           Competitors Analyzed
         </label>
-        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="flex flex-col gap-2 mt-2">
           {competitors.map((comp, idx) => (
             <a
               key={idx}
               href={comp.url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                color: '#58a6ff',
-                textDecoration: 'none',
-                fontSize: '13px',
-                padding: '8px',
-                backgroundColor: '#0d1117',
-                borderRadius: '6px',
-                border: '1px solid #30363d',
-                display: 'block',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
+              className="text-accent px-2 py-2 bg-base border border-subtle rounded text-xs no-underline block overflow-hidden text-ellipsis whitespace-nowrap hover:bg-raised transition-colors"
             >
               {comp.domain}
             </a>
