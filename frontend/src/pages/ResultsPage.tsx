@@ -11,7 +11,7 @@ import { RecommendationsList } from '../components/results/RecommendationsList'
 export function ResultsPage() {
   const { sessionId: paramSessionId } = useParams<{ sessionId: string }>()
   const { sessionId, results, progress, error, setProgress, setResults, setError } = useAnalysis()
-  const [activeTab, setActiveTab] = useState<'business' | 'evaluation' | 'positioning' | 'recommendations'>('business')
+  const [activeTab, setActiveTab] = useState<'evaluation' | 'business' | 'recommendations'>('evaluation')
 
   const effectiveSessionId = paramSessionId || sessionId
   const isLoading = !results && progress?.status !== 'completed'
@@ -25,7 +25,6 @@ export function ResultsPage() {
 
   useEffect(() => {
     if (paramSessionId && !sessionId) {
-      // Session ID from URL params but context is empty; might need to reload
       console.log('Session ID from URL:', paramSessionId)
     }
   }, [paramSessionId, sessionId])
@@ -41,8 +40,8 @@ export function ResultsPage() {
         }}
       >
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '32px', textAlign: 'center' }}>
-            🔍 Analyzing Your Business
+          <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '32px', textAlign: 'center' }}>
+            Analyzing Your Business
           </h1>
           <ProgressBar percent={progress.percent} message={progress.message} />
         </div>
@@ -87,15 +86,12 @@ export function ResultsPage() {
           minHeight: '100vh',
           backgroundColor: '#0f1117',
           color: '#c9d1d9',
-          padding: '40px 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ color: '#8b949e' }}>No results available</p>
-        </div>
+        <p style={{ color: '#8b949e' }}>No results available</p>
       </div>
     )
   }
@@ -105,94 +101,66 @@ export function ResultsPage() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f1117', color: '#c9d1d9' }}>
-      {/* Header */}
-      <div style={{ padding: '40px 20px', borderBottom: '1px solid #30363d' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '24px' }}>
-            Analysis Results for {results.biz.business_name}
-          </h1>
 
-          {/* Key Metrics */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            <div
-              style={{
-                padding: '16px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase', marginBottom: '4px' }}>
-                Visibility Score
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: scoreColor }}>
-                {visibilityScore.toFixed(1)}
-              </div>
-              <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>out of 10</div>
+      {/* ── Compact top bar ── */}
+      <div style={{ borderBottom: '1px solid #21262d', padding: '14px 24px' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+
+          {/* Business name + meta */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+              {results.biz.business_name}
+            </h1>
+            {results.biz.industry && (
+              <span style={{ fontSize: '13px', color: '#8b949e' }}>{results.biz.industry}</span>
+            )}
+            {results.biz.location && (
+              <span style={{ fontSize: '12px', color: '#58a6ff', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', padding: '1px 6px' }}>
+                {results.biz.location}
+              </span>
+            )}
+          </div>
+
+          {/* 4 stats inline */}
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 'bold', color: scoreColor }}>{visibilityScore.toFixed(1)}</span>
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>/ 10 visibility</span>
             </div>
-
-            <div
-              style={{
-                padding: '16px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase', marginBottom: '4px' }}>
-                Mention Rate
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f6feb' }}>
-                {(results.eval.mention_rate * 100).toFixed(0)}%
-              </div>
-              <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>of competitors</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#1f6feb' }}>{results.eval.mention_rate.toFixed(0)}%</span>
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>mention rate</span>
             </div>
-
-            <div
-              style={{
-                padding: '16px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase', marginBottom: '4px' }}>
-                Competitors
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#79c0ff' }}>
-                {results.comp_docs.length}
-              </div>
-              <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>analyzed</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#79c0ff' }}>{results.comp_docs.length}</span>
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>competitors</span>
             </div>
-
-            <div
-              style={{
-                padding: '16px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ color: '#8b949e', fontSize: '12px', textTransform: 'uppercase', marginBottom: '4px' }}>
-                Questions
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#79c0ff' }}>
-                {results.eval.total_questions}
-              </div>
-              <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>tested</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+              <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#79c0ff' }}>{results.eval.total_questions}</span>
+              <span style={{ fontSize: '11px', color: '#8b949e' }}>questions tested</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ padding: '20px', borderBottom: '1px solid #30363d', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* ── Main: Positioning Map ── */}
+      <div style={{ borderBottom: '1px solid #21262d', padding: '20px 24px' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#c9d1d9' }}>Positioning Map</span>
+            <span style={{ fontSize: '11px', color: '#8b949e' }}>— where your business sits in AI semantic space vs competitors</span>
+          </div>
+          <PCAViz coords={results.coords} pcaMeta={results.pca_meta} interps={results.interps} />
+        </div>
+      </div>
+
+      {/* ── Tabs for remaining sections ── */}
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 24px' }}>
+        <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #21262d', marginBottom: '20px', paddingTop: '16px' }}>
           {[
-            { id: 'business' as const, label: '📋 Business Profile' },
-            { id: 'evaluation' as const, label: '🧪 AI Visibility Tests' },
-            { id: 'positioning' as const, label: '🗺️ Positioning Map' },
-            { id: 'recommendations' as const, label: '🛠️ Recommendations' },
+            { id: 'evaluation' as const, label: 'AI Visibility Tests' },
+            { id: 'business' as const, label: 'Business Profile' },
+            { id: 'recommendations' as const, label: 'Recommendations' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -200,27 +168,24 @@ export function ResultsPage() {
               style={{
                 padding: '8px 16px',
                 fontSize: '13px',
-                backgroundColor: activeTab === tab.id ? '#238636' : '#0d1117',
-                color: activeTab === tab.id ? '#fff' : '#c9d1d9',
-                border: activeTab === tab.id ? 'none' : '1px solid #30363d',
-                borderRadius: '6px',
+                backgroundColor: 'transparent',
+                color: activeTab === tab.id ? '#c9d1d9' : '#8b949e',
+                border: 'none',
+                borderBottom: activeTab === tab.id ? '2px solid #238636' : '2px solid transparent',
                 cursor: 'pointer',
+                marginBottom: '-1px',
               }}
             >
               {tab.label}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-        {activeTab === 'business' && <BusinessCard business={results.biz} competitors={results.comp_docs} />}
-        {activeTab === 'evaluation' && <EvaluationTable evalData={results.eval} />}
-        {activeTab === 'positioning' && (
-          <PCAViz coords={results.coords} pcaMeta={results.pca_meta} interps={results.interps} />
-        )}
-        {activeTab === 'recommendations' && <RecommendationsList recs={results.recs} />}
+        <div style={{ paddingBottom: '40px' }}>
+          {activeTab === 'business' && <BusinessCard business={results.biz} competitors={results.comp_docs} />}
+          {activeTab === 'evaluation' && <EvaluationTable evalData={results.eval} />}
+          {activeTab === 'recommendations' && <RecommendationsList recs={results.recs} />}
+        </div>
       </div>
     </div>
   )

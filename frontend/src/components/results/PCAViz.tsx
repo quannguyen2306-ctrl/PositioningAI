@@ -9,8 +9,27 @@ interface PCAVizProps {
   interps: PcaInterpretation[]
 }
 
+const selectStyle: React.CSSProperties = {
+  padding: '4px 8px',
+  backgroundColor: '#0d1117',
+  border: '1px solid #30363d',
+  borderRadius: '6px',
+  color: '#c9d1d9',
+  fontSize: '12px',
+  cursor: 'pointer',
+}
+
+const labelStyle: React.CSSProperties = {
+  color: '#8b949e',
+  fontSize: '11px',
+  textTransform: 'uppercase' as const,
+  marginRight: '6px',
+}
+
 export function PCAViz({ coords, pcaMeta, interps }: PCAVizProps) {
-  const [is3D, setIs3D] = useState(false)
+  const nComponents = coords[0]?.length ?? 0
+  const [xAxis, setXAxis] = useState(0)
+  const [yAxis, setYAxis] = useState(1)
 
   if (!coords || coords.length === 0) {
     return (
@@ -20,148 +39,133 @@ export function PCAViz({ coords, pcaMeta, interps }: PCAVizProps) {
     )
   }
 
-  // Separate user point (first) and competitors (rest)
-  const userCoord = coords[0]
-  const compCoords = coords.slice(1)
+  // Separate by source field (not index) to fix overlap issue
+  const userCoords = coords.filter((_, i) => pcaMeta[i]?.source === 'user')
+  const compCoords = coords.filter((_, i) => pcaMeta[i]?.source !== 'user')
+  const compMeta = pcaMeta.filter(m => m.source !== 'user')
 
-  // Prepare trace data
-  const traces = []
+  const axisOptions = Array.from({ length: nComponents }, (_, i) => ({
+    value: i,
+    label: interps[i]?.dimension_name ? `PC${i + 1}: ${interps[i].dimension_name}` : `PC${i + 1}`,
+  }))
 
-  // User point
-  if (is3D && userCoord.length >= 3) {
-    traces.push({
-      x: [userCoord[0]],
-      y: [userCoord[1]],
-      z: [userCoord[2]],
-      mode: 'markers',
-      type: 'scatter3d',
-      name: 'Your Business',
-      marker: { size: 12, color: '#1f6feb', symbol: 'circle' },
-      text: ['Your Business'],
-      hovertemplate: '<b>Your Business</b><extra></extra>',
-    })
+  const xInterp = interps[xAxis]
+  const yInterp = interps[yAxis]
 
-    // Competitor points
-    traces.push({
-      x: compCoords.map(c => c[0]),
-      y: compCoords.map(c => c[1]),
-      z: compCoords.map(c => c[2]),
-      mode: 'markers',
-      type: 'scatter3d',
-      name: 'Competitors',
-      marker: { size: 8, color: '#fb8500', symbol: 'circle' },
-      text: pcaMeta.slice(1).map(m => m.domain),
-      hovertemplate: '<b>%{text}</b><extra></extra>',
-    })
-  } else {
-    traces.push({
-      x: [userCoord[0]],
-      y: [userCoord[1]],
-      mode: 'markers',
-      type: 'scatter',
-      name: 'Your Business',
-      marker: { size: 12, color: '#1f6feb' },
-      text: ['Your Business'],
-      hovertemplate: '<b>Your Business</b><extra></extra>',
-    })
-
-    traces.push({
-      x: compCoords.map(c => c[0]),
-      y: compCoords.map(c => c[1]),
+  const traces: object[] = [
+    {
+      x: compCoords.map(c => c[xAxis]),
+      y: compCoords.map(c => c[yAxis]),
       mode: 'markers',
       type: 'scatter',
       name: 'Competitors',
-      marker: { size: 8, color: '#fb8500' },
-      text: pcaMeta.slice(1).map(m => m.domain),
+      marker: { size: 8, color: '#fb8500', opacity: 0.65 },
+      text: compMeta.map(m => m.domain),
       hovertemplate: '<b>%{text}</b><extra></extra>',
-    })
+    },
+    {
+      x: userCoords.map(c => c[xAxis]),
+      y: userCoords.map(c => c[yAxis]),
+      mode: 'markers',
+      type: 'scatter',
+      name: 'Your Business',
+      marker: { size: 11, color: '#FFD700', symbol: 'star', line: { width: 1, color: '#8B6914' } },
+      hovertemplate: '<b>Your Business</b><extra></extra>',
+    },
+  ]
+
+  const xTitle = xInterp
+    ? `${xInterp.negative_end} ← PC${xAxis + 1} → ${xInterp.positive_end}`
+    : `PC${xAxis + 1}`
+  const yTitle = yInterp
+    ? `${yInterp.negative_end} ← PC${yAxis + 1} → ${yInterp.positive_end}`
+    : `PC${yAxis + 1}`
+
+  const layout = {
+    xaxis: { title: xTitle, gridcolor: '#21262d', zerolinecolor: '#444', color: '#8b949e' },
+    yaxis: { title: yTitle, gridcolor: '#21262d', zerolinecolor: '#444', color: '#8b949e' },
+    paper_bgcolor: '#0f1117',
+    plot_bgcolor: '#0d1117',
+    font: { color: '#c9d1d9' },
+    margin: { l: 70, r: 20, t: 16, b: 70 },
+    legend: { x: 1.01, y: 1, font: { size: 11 } },
+    hovermode: 'closest',
   }
 
-  const layout = is3D
-    ? {
-        title: 'Positioning Map (3D PCA)',
-        scene: {
-          xaxis: { title: interps[0]?.dimension_name || 'PC1' },
-          yaxis: { title: interps[1]?.dimension_name || 'PC2' },
-          zaxis: { title: interps[2]?.dimension_name || 'PC3' },
-          bgcolor: '#0f1117',
-        },
-        paper_bgcolor: '#0f1117',
-        plot_bgcolor: '#161b22',
-        font: { color: '#c9d1d9' },
-        margin: { l: 0, r: 0, t: 40, b: 0 },
-      }
-    : {
-        title: 'Positioning Map (2D PCA)',
-        xaxis: { title: interps[0]?.dimension_name || 'PC1' },
-        yaxis: { title: interps[1]?.dimension_name || 'PC2' },
-        paper_bgcolor: '#0f1117',
-        plot_bgcolor: '#161b22',
-        font: { color: '#c9d1d9' },
-        margin: { l: 50, r: 20, t: 40, b: 50 },
-      }
+  const selectedInterps = [xInterp, yInterp].filter(Boolean) as PcaInterpretation[]
 
   return (
-    <div style={{ padding: '20px', width: '100%' }}>
-      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ color: '#c9d1d9', fontSize: '16px', fontWeight: 'bold' }}>
-          Market Positioning
-        </h3>
-        <button
-          onClick={() => setIs3D(!is3D)}
-          style={{
-            padding: '6px 12px',
-            backgroundColor: '#238636',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '12px',
-          }}
-        >
-          {is3D ? 'Switch to 2D' : 'Switch to 3D'}
-        </button>
+    <div style={{ width: '100%' }}>
+      {/* Axis selectors */}
+      <div style={{ display: 'flex', gap: '24px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={labelStyle}>X Axis</span>
+          <select
+            value={xAxis}
+            onChange={e => setXAxis(Number(e.target.value))}
+            style={selectStyle}
+          >
+            {axisOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={labelStyle}>Y Axis</span>
+          <select
+            value={yAxis}
+            onChange={e => setYAxis(Number(e.target.value))}
+            style={selectStyle}
+          >
+            {axisOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        <span style={{ color: '#8b949e', fontSize: '11px' }}>
+          {nComponents} components available
+        </span>
       </div>
 
       <Suspense fallback={<div style={{ color: '#8b949e' }}>Loading chart...</div>}>
-        <Plot data={traces} layout={layout} style={{ width: '100%', height: '500px' }} />
+        <Plot
+          data={traces as never}
+          layout={layout as never}
+          style={{ width: '100%', height: '620px' }}
+          config={{ responsive: true }}
+        />
       </Suspense>
 
-      {/* Dimension Interpretations */}
-      {interps.length > 0 && (
-        <div style={{ marginTop: '24px' }}>
-          <h4 style={{ color: '#c9d1d9', fontSize: '14px', fontWeight: 'bold', marginBottom: '12px' }}>
-            Dimension Interpretations
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
-            {interps.map((interp, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: '12px',
-                  backgroundColor: '#0d1117',
-                  border: '1px solid #30363d',
-                  borderRadius: '6px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ color: '#c9d1d9', fontSize: '13px', fontWeight: 'bold' }}>
-                    {interp.dimension_name}
-                  </span>
-                  <span style={{ color: '#8b949e', fontSize: '11px' }}>
-                    {(interp.variance_explained * 100).toFixed(1)}% variance
-                  </span>
-                </div>
-                <p style={{ color: '#c9d1d9', fontSize: '12px', marginBottom: '8px', lineHeight: '1.4' }}>
-                  {interp.explanation}
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#8b949e' }}>
-                  <span>← {interp.negative_end}</span>
-                  <span>{interp.positive_end} →</span>
-                </div>
+      {/* Interpretations for selected axes */}
+      {selectedInterps.length > 0 && (
+        <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          {selectedInterps.map((interp, idx) => (
+            <div
+              key={idx}
+              style={{
+                padding: '12px',
+                backgroundColor: '#0d1117',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ color: '#c9d1d9', fontSize: '12px', fontWeight: 'bold' }}>
+                  {idx === 0 ? 'X' : 'Y'}: {interp.dimension_name}
+                </span>
+                <span style={{ color: '#8b949e', fontSize: '11px' }}>
+                  {interp.variance_explained}% var
+                </span>
               </div>
-            ))}
-          </div>
+              <p style={{ color: '#8b949e', fontSize: '11px', margin: '0 0 6px', lineHeight: '1.4' }}>
+                {interp.explanation}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#58a6ff' }}>
+                <span>← {interp.negative_end}</span>
+                <span>{interp.positive_end} →</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
