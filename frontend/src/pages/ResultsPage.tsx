@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
 import { Eye } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
-import { useWebSocket } from '../hooks/useWebSocket'
 import { DashHeader } from '../components/dashboard/DashHeader'
 import { Sidebar } from '../components/dashboard/Sidebar'
 import { HeroMetrics } from '../components/dashboard/HeroMetrics'
@@ -14,22 +12,10 @@ import { RecommendationsList } from '../components/results/RecommendationsList'
 import type { NavSection } from '../components/dashboard/Sidebar'
 
 export function ResultsPage() {
-  const { sessionId: paramSessionId } = useParams<{ sessionId: string }>()
-  const { sessionId, results, progress, error, setProgress, setResults, setError } = useAnalysis()
+  const { results, progress, error, setProgress, setResults, setError } = useAnalysis()
   const [activeSection, setActiveSection] = useState<NavSection>('overview')
 
-  const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-  const effectiveSessionId = (paramSessionId && isValidUUID(paramSessionId))
-    ? paramSessionId
-    : sessionId
   const isLoading = !results && progress?.status !== 'completed'
-
-  useWebSocket(
-    effectiveSessionId || null,
-    (event) => setProgress(event),
-    (result) => setResults(result),
-    (message) => setError(message)
-  )
 
   // Loading state — analysis in progress
   if (!results && isLoading) {

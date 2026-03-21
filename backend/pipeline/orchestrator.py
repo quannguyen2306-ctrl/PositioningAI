@@ -38,6 +38,7 @@ class AnalysisPipeline:
         n_questions: int = 10,
         custom_questions: list[str] | None = None,
         progress_callback=None,
+        event_callback=None,
     ):
         self.business_url = business_url
         self.openai_client = OpenAI(api_key=openai_api_key)
@@ -46,6 +47,7 @@ class AnalysisPipeline:
         self.n_questions = n_questions
         self.custom_questions = custom_questions
         self.progress_callback = progress_callback
+        self.event_callback = event_callback
 
         # Pipeline outputs
         self.business_context = None
@@ -66,6 +68,11 @@ class AnalysisPipeline:
             percent = int((stage / total_stages) * 100)
             self.progress_callback(percent, message)
 
+    def _emit(self, event_type: str, data: dict):
+        """Helper to fire an SSE-style event via event_callback."""
+        if self.event_callback:
+            self.event_callback({"event": event_type, **data})
+
     def run(self) -> dict:
         """
         Execute the full 9-stage pipeline.
@@ -80,6 +87,7 @@ class AnalysisPipeline:
         # --- Stage 2: Extract business context ---
         self._report_progress(2, total_stages, "Extracting business information...")
         self.business_context = extract_business_context(self.user_text, self.openai_client)
+        self._emit("profile", {"data": self.business_context})
 
         # --- Stage 3: Search for competitors ---
         self._report_progress(3, total_stages, "Searching for competitors...")
@@ -89,6 +97,7 @@ class AnalysisPipeline:
             self.serper_api_key,
             n=self.n_competitors,
         )
+        self._emit("competitors", {"competitors": competitor_urls})
 
         # --- Stage 4: Fetch competitor documents ---
         self._report_progress(4, total_stages, f"Fetching {len(competitor_urls)} competitor websites...")
@@ -130,6 +139,7 @@ class AnalysisPipeline:
         )
         # Limit to requested number
         test_questions = test_questions[:self.n_questions]
+        self._emit("questions", {"questions": test_questions})
 
         # --- Stage 8: Run RAG evaluation ---
         self._report_progress(8, total_stages, "Evaluating visibility in AI responses...")
@@ -140,6 +150,12 @@ class AnalysisPipeline:
             self.business_context.get("business_name", "Your Business"),
             progress_callback=None,  # Sub-progress handled internally
         )
+        # Normalise mention_rate to 0.0–1.0 fraction (frontend multiplies by 100)
+        eval_for_sse = {
+            **self.eval_results,
+            "mention_rate": round(self.eval_results["mention_rate"] / 100, 4),
+        }
+        self._emit("eval", {"eval": eval_for_sse})
 
         # --- Stage 9: PCA + recommendations ---
         self._report_progress(9, total_stages, "Analyzing competitive positioning...")
@@ -168,6 +184,19 @@ class AnalysisPipeline:
             self.business_context.get("business_name", "Your Business"),
         )
 
+        # Build PCA points for SSE (coords rows + metadata)
+        embeddings, pca_metadata = self.store.get_all_for_pca()
+        pca_points = [
+            {
+                "components": self.coords[i].tolist(),
+                "source": pca_metadata[i]["source"],
+                "domain": pca_metadata[i]["domain"],
+                "text": pca_metadata[i]["text"],
+            }
+            for i in range(len(self.coords))
+        ]
+        self._emit("pca", {"points": pca_points, "interpretations": self.interpretations})
+
         self.recommendations = generate_recommendations(
             self.business_context,
             self.eval_results,
@@ -175,6 +204,8 @@ class AnalysisPipeline:
             self.competitor_docs,
             self.openai_client,
         )
+        self._emit("recommendations", {"recs": self.recommendations})
+        self._emit("complete", {})
 
         return self._compile_results()
 

@@ -9,6 +9,8 @@ import type {
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 
+const STALL_TIMEOUT_MS = 120_000 // 2 minutes without any SSE event → give up
+
 export interface PcaPoint {
   components: number[]
   source: string
@@ -42,6 +44,24 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
 
   const controller = new AbortController()
 
+  // Stall detection: fire onError if no event arrives within STALL_TIMEOUT_MS
+  let stallTimer: ReturnType<typeof setTimeout> | null = null
+
+  const resetStallTimer = () => {
+    if (stallTimer !== null) clearTimeout(stallTimer)
+    stallTimer = setTimeout(() => {
+      callbacks.onError('Analysis stalled — no response for 2 minutes. Please try again.')
+      controller.abort()
+    }, STALL_TIMEOUT_MS)
+  }
+
+  const clearStallTimer = () => {
+    if (stallTimer !== null) {
+      clearTimeout(stallTimer)
+      stallTimer = null
+    }
+  }
+
   fetch(`${BASE}/analyse/stream?${params}`, { signal: controller.signal })
     .then(async (res) => {
       if (!res.ok || !res.body) {
@@ -52,6 +72,9 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+
+      // Start stall timer once the stream is open
+      resetStallTimer()
 
       while (true) {
         const { done, value } = await reader.read()
@@ -68,7 +91,14 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
           if (!dataLine) continue
           try {
             const payload = JSON.parse(dataLine.slice(6))
+
+            // Reset stall timer on every event, including heartbeat
+            resetStallTimer()
+
             switch (payload.event) {
+              case 'heartbeat':
+                // Keepalive — no UI action needed
+                break
               case 'progress':
                 callbacks.onProgress(payload.pct, payload.step)
                 break
@@ -105,14 +135,20 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
           }
         }
       }
+
+      clearStallTimer()
     })
     .catch((err: Error) => {
+      clearStallTimer()
       if (err.name !== 'AbortError') {
         callbacks.onError(String(err))
       }
     })
 
-  return () => controller.abort()
+  return () => {
+    clearStallTimer()
+    controller.abort()
+  }
 }
 
 /** Build a minimal CompDoc list from competitor URLs returned by the SSE event. */
