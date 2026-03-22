@@ -9,15 +9,25 @@ import type {
   Recommendations,
   ProgressEvent,
   CompDoc,
+  MultiEngineResult,
 } from '../api/types'
+import useSessionStorage from '../hooks/useSessionStorage'
+import type { SessionRecord } from '../hooks/useSessionStorage'
+
+export type { SessionRecord }
 
 interface AnalysisContextType {
   sessionId: string | null
   results: AnalysisResult | null
   progress: ProgressEvent | null
   error: string | null
+  analysisRequest: AnalysisRequest | null
+  sessionHistory: SessionRecord[]
   startAnalysis: (req: AnalysisRequest) => Promise<string>
   clearSession: () => void
+  restoreSession: (record: SessionRecord) => void
+  deleteSession: (id: string) => void
+  clearAllSessions: () => void
   setProgress: (progress: ProgressEvent) => void
   setResults: (results: AnalysisResult) => void
   setError: (error: string | null) => void
@@ -30,6 +40,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [results, setResults] = useState<AnalysisResult | null>(null)
   const [progress, setProgress] = useState<ProgressEvent | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [analysisRequest, setAnalysisRequest] = useState<AnalysisRequest | null>(null)
+
+  const { sessions: sessionHistory, saveSession, deleteSession, clearAll: clearAllSessions } = useSessionStorage()
 
   // Holds an abort function so we can cancel a running stream
   const abortRef = useRef<(() => void) | null>(null)
@@ -44,6 +57,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     setError(null)
     setProgress({ percent: 0, message: 'Starting…', status: 'processing' })
     setResults(null)
+    setAnalysisRequest(req)
 
     // Use a simple counter as session id (stable across re-renders, unique per run)
     const sid = String(Date.now())
@@ -58,6 +72,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       pca_meta?: Array<{ source: string; url: string; domain: string }>
       interps?: PcaInterpretation[]
       recs?: Recommendations
+      multi_engine?: MultiEngineResult
     } = {}
 
     const abort = streamAnalysis(req, {
@@ -90,10 +105,14 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         acc.recs = recs
       },
 
+      onMultiEngine: (data) => {
+        acc.multi_engine = data
+      },
+
       onComplete: () => {
         setProgress({ percent: 100, message: 'Analysis complete!', status: 'completed' })
         if (acc.biz && acc.eval && acc.coords && acc.recs) {
-          setResults({
+          const result: AnalysisResult = {
             biz: acc.biz,
             comp_docs: acc.comp_docs ?? [],
             eval: acc.eval,
@@ -101,7 +120,10 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
             pca_meta: acc.pca_meta ?? [],
             interps: acc.interps ?? [],
             recs: acc.recs,
-          })
+            multi_engine: acc.multi_engine,
+          }
+          setResults(result)
+          saveSession(sid, req.url, acc.eval.avg_visibility_score, result)
         }
       },
 
@@ -124,6 +146,19 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     setResults(null)
     setProgress(null)
     setError(null)
+    setAnalysisRequest(null)
+  }, [])
+
+  const restoreSession = useCallback((record: SessionRecord) => {
+    if (abortRef.current) {
+      abortRef.current()
+      abortRef.current = null
+    }
+    setSessionId(record.id)
+    setResults(record.results)
+    setProgress(null)
+    setError(null)
+    setAnalysisRequest(null)
   }, [])
 
   const value: AnalysisContextType = {
@@ -131,14 +166,23 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     results,
     progress,
     error,
+    analysisRequest,
+    sessionHistory,
     startAnalysis: handleStartAnalysis,
     clearSession: handleClearSession,
+    restoreSession,
+    deleteSession,
+    clearAllSessions,
     setProgress,
     setResults,
     setError,
   }
 
-  return <AnalysisContext.Provider value={value}>{children}</AnalysisContext.Provider>
+  return (
+    <AnalysisContext.Provider value={value}>
+      {children}
+    </AnalysisContext.Provider>
+  )
 }
 
 export function useAnalysis(): AnalysisContextType {

@@ -1,255 +1,131 @@
 import { useState } from 'react'
-import type { Recommendations } from '../../api/types'
+import type { Recommendations, Fix, ContentPiece } from '../../api/types'
+import { LearnMoreModal } from '../modals/LearnMoreModal'
+
+type ModalContent =
+  | { kind: 'fix'; data: Fix }
+  | { kind: 'content'; data: ContentPiece }
 
 interface RecommendationsListProps {
   recs: Recommendations
 }
 
-function getImpactColor(impact: 'high' | 'medium' | 'low'): string {
-  switch (impact) {
-    case 'high':
-      return '#da3633'
-    case 'medium':
-      return '#d29922'
-    case 'low':
-      return '#238636'
-  }
+function getPriorityLabel(impact: Fix['impact']): string {
+  if (impact === 'high') return 'High Priority'
+  if (impact === 'medium') return 'Quick Win'
+  return 'Long Term'
+}
+
+function getPriorityClass(impact: Fix['impact']): string {
+  if (impact === 'high') return 'bg-raised text-text-secondary border border-subtle'
+  if (impact === 'medium') return 'bg-raised text-text-secondary border border-subtle'
+  return 'bg-raised text-text-secondary border border-subtle'
+}
+
+function FixCard({ fix, onLearnMore }: { fix: Fix; onLearnMore: (item: ModalContent) => void }) {
+  return (
+    <div className="card p-5 flex flex-col gap-3 transition-colors">
+      <span className={`px-2.5 py-1 rounded-full text-2xs font-display font-semibold uppercase tracking-wider w-fit ${getPriorityClass(fix.impact)}`}>
+        {getPriorityLabel(fix.impact)}
+      </span>
+      <div>
+        <p className="font-display font-bold text-base text-text-primary leading-snug">{fix.title}</p>
+        <p className="text-text-secondary text-sm mt-1.5 leading-relaxed">{fix.problem}</p>
+      </div>
+      <div className="mt-auto pt-2 border-t border-subtle">
+        <p className="text-2xs uppercase tracking-widest text-text-muted mb-1">Action</p>
+        <p className="text-text-secondary text-sm leading-relaxed">{fix.action}</p>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-2xs text-text-muted">
+          Effort: <span className="text-text-secondary capitalize">{fix.effort}</span>
+        </span>
+        <button onClick={() => onLearnMore({ kind: 'fix', data: fix })} className="text-accent text-xs font-display font-semibold hover:underline focus:outline-none">
+          Learn more →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ContentCard({ piece, onLearnMore }: { piece: ContentPiece; onLearnMore: (item: ModalContent) => void }) {
+  return (
+    <div className="card p-5 flex flex-col gap-3 transition-colors">
+      <span className="px-2.5 py-1 rounded-full text-2xs font-display font-semibold uppercase tracking-wider w-fit bg-accent/15 text-accent border border-accent/30">
+        {piece.type}
+      </span>
+      <div>
+        <p className="font-display font-bold text-base text-text-primary leading-snug">{piece.title}</p>
+        <p className="text-text-secondary text-sm mt-1.5">Placement: {piece.placement}</p>
+      </div>
+      <div className="mt-auto pt-2 border-t border-subtle">
+        <p className="text-2xs uppercase tracking-widest text-text-muted mb-1.5">Suggested Content</p>
+        <p className="text-text-secondary text-sm leading-relaxed line-clamp-3">{piece.suggested_content}</p>
+      </div>
+      <button onClick={() => onLearnMore({ kind: 'content', data: piece })} className="text-accent text-xs font-display font-semibold hover:underline focus:outline-none w-fit">
+        Learn more →
+      </button>
+    </div>
+  )
 }
 
 export function RecommendationsList({ recs }: RecommendationsListProps) {
-  const [expandedFix, setExpandedFix] = useState<number | null>(null)
-  const [expandedContent, setExpandedContent] = useState<number | null>(null)
+  const [selectedItem, setSelectedItem] = useState<ModalContent | null>(null)
 
   return (
-    <div style={{ padding: '20px', width: '100%' }}>
+    <div className="space-y-6">
       {/* Executive Summary */}
-      <div
-        style={{
-          padding: '16px',
-          backgroundColor: '#1f6feb',
-          borderRadius: '8px',
-          marginBottom: '24px',
-          border: '1px solid #388bfd',
-        }}
-      >
-        <h3 style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
-          Executive Summary
-        </h3>
-        <p style={{ color: '#fff', fontSize: '13px', lineHeight: '1.6' }}>
-          {recs.executive_summary}
-        </p>
-      </div>
-
-      {/* Overall Score Meaning */}
-      <div
-        style={{
-          padding: '16px',
-          backgroundColor: '#0d1117',
-          border: '1px solid #30363d',
-          borderRadius: '8px',
-          marginBottom: '24px',
-        }}
-      >
-        <h4 style={{ color: '#c9d1d9', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '8px' }}>
-          What Your Score Means
-        </h4>
-        <p style={{ color: '#c9d1d9', fontSize: '13px', lineHeight: '1.6' }}>
-          {recs.overall_score_meaning}
-        </p>
+      <div className="border-l-[3px] border-accent bg-surface rounded-lg px-5 py-4">
+        <p className="text-2xs uppercase tracking-widest text-text-muted mb-1.5">Executive Summary</p>
+        <p className="text-text-primary text-sm leading-relaxed">{recs.executive_summary}</p>
       </div>
 
       {/* Positioning Insight */}
-      <div
-        style={{
-          padding: '16px',
-          backgroundColor: '#0d1117',
-          border: '1px solid #30363d',
-          borderRadius: '8px',
-          marginBottom: '24px',
-        }}
-      >
-        <h4 style={{ color: '#c9d1d9', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '8px' }}>
-          Positioning Insight
-        </h4>
-        <p style={{ color: '#c9d1d9', fontSize: '13px', lineHeight: '1.6' }}>
-          {recs.positioning_insight}
-        </p>
+      <div className="card px-5 py-4">
+        <p className="text-2xs uppercase tracking-widest text-text-muted mb-1.5">Positioning Insight</p>
+        <p className="text-text-secondary text-sm leading-relaxed">{recs.positioning_insight}</p>
       </div>
 
       {/* Priority Fixes */}
-      <div style={{ marginBottom: '24px' }}>
-        <h3 style={{ color: '#c9d1d9', fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>
-          🔧 Priority Fixes
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div>
+        <p className="input-label mb-3">Priority Fixes</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {recs.priority_fixes.map((fix, idx) => (
-            <div
-              key={idx}
-              style={{
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '8px',
-                overflow: 'hidden',
-              }}
-            >
-              <button
-                onClick={() => setExpandedFix(expandedFix === idx ? null : idx)}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: '#0d1117',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: '#c9d1d9', fontSize: '13px', fontWeight: 'bold' }}>
-                    {fix.title}
-                  </div>
-                  <div style={{ marginTop: '4px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        backgroundColor: getImpactColor(fix.impact),
-                        color: '#fff',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontWeight: 'bold',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {fix.impact} impact
-                    </span>
-                  </div>
-                </div>
-                <span style={{ color: '#8b949e', marginLeft: '12px' }}>
-                  {expandedFix === idx ? '−' : '+'}
-                </span>
-              </button>
-
-              {expandedFix === idx && (
-                <div style={{ padding: '16px', borderTop: '1px solid #30363d', backgroundColor: '#0d1117' }}>
-                  <div style={{ marginBottom: '12px' }}>
-                    <label style={{ color: '#8b949e', fontSize: '11px', textTransform: 'uppercase' }}>
-                      Problem:
-                    </label>
-                    <p style={{ color: '#c9d1d9', fontSize: '13px', marginTop: '4px', lineHeight: '1.5' }}>
-                      {fix.problem}
-                    </p>
-                  </div>
-                  <div style={{ marginBottom: '12px' }}>
-                    <label style={{ color: '#8b949e', fontSize: '11px', textTransform: 'uppercase' }}>
-                      Action:
-                    </label>
-                    <p style={{ color: '#c9d1d9', fontSize: '13px', marginTop: '4px', lineHeight: '1.5' }}>
-                      {fix.action}
-                    </p>
-                  </div>
-                  <div>
-                    <label style={{ color: '#8b949e', fontSize: '11px', textTransform: 'uppercase' }}>
-                      Effort:
-                    </label>
-                    <p style={{ color: '#c9d1d9', fontSize: '13px', marginTop: '4px' }}>
-                      {fix.effort}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <FixCard key={idx} fix={fix} onLearnMore={setSelectedItem} />
           ))}
         </div>
       </div>
 
       {/* Content to Add */}
-      <div style={{ marginBottom: '24px' }}>
-        <h3 style={{ color: '#c9d1d9', fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>
-          📝 Content to Add
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {recs.content_to_add.map((piece, idx) => (
-            <div
-              key={idx}
-              style={{
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '8px',
-                overflow: 'hidden',
-              }}
-            >
-              <button
-                onClick={() => setExpandedContent(expandedContent === idx ? null : idx)}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: '#0d1117',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: '#c9d1d9', fontSize: '13px', fontWeight: 'bold' }}>
-                    {piece.title}
-                  </div>
-                  <div style={{ marginTop: '4px', display: 'flex', gap: '8px' }}>
-                    <span style={{ color: '#8b949e', fontSize: '11px' }}>Type: {piece.type}</span>
-                    <span style={{ color: '#8b949e', fontSize: '11px' }}>Place: {piece.placement}</span>
-                  </div>
-                </div>
-                <span style={{ color: '#8b949e', marginLeft: '12px' }}>
-                  {expandedContent === idx ? '−' : '+'}
-                </span>
-              </button>
-
-              {expandedContent === idx && (
-                <div style={{ padding: '16px', borderTop: '1px solid #30363d', backgroundColor: '#0d1117' }}>
-                  <label style={{ color: '#8b949e', fontSize: '11px', textTransform: 'uppercase' }}>
-                    Suggested Content:
-                  </label>
-                  <pre
-                    style={{
-                      backgroundColor: '#0f1117',
-                      border: '1px solid #30363d',
-                      padding: '12px',
-                      borderRadius: '6px',
-                      color: '#79c0ff',
-                      fontSize: '12px',
-                      overflow: 'auto',
-                      marginTop: '8px',
-                      whiteSpace: 'pre-wrap',
-                      wordWrap: 'break-word',
-                      lineHeight: '1.4',
-                    }}
-                  >
-                    {piece.suggested_content}
-                  </pre>
-                </div>
-              )}
-            </div>
-          ))}
+      {recs.content_to_add.length > 0 && (
+        <div>
+          <p className="input-label mb-3">Content to Add</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recs.content_to_add.map((piece, idx) => (
+              <ContentCard key={idx} piece={piece} onLearnMore={setSelectedItem} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Topics to Cover */}
-      <div>
-        <h3 style={{ color: '#c9d1d9', fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>
-          📚 Key Topics to Cover
-        </h3>
-        <ol style={{ color: '#c9d1d9', fontSize: '13px', lineHeight: '1.8', paddingLeft: '20px' }}>
-          {recs.topics_to_cover.map((topic, idx) => (
-            <li key={idx} style={{ marginBottom: '4px' }}>
-              {topic}
-            </li>
-          ))}
-        </ol>
-      </div>
+      {recs.topics_to_cover.length > 0 && (
+        <div>
+          <p className="input-label mb-3">Key Topics to Cover</p>
+          <div className="flex flex-wrap gap-2">
+            {recs.topics_to_cover.map((topic, idx) => (
+              <span
+                key={idx}
+                className="pill"
+              >
+                {topic}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedItem && <LearnMoreModal content={selectedItem} onClose={() => setSelectedItem(null)} />}
     </div>
   )
 }

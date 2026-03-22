@@ -5,6 +5,7 @@ Thread-safe in-memory session storage.
 """
 
 import uuid
+import time
 import threading
 from typing import Optional, Dict, Any
 
@@ -25,6 +26,7 @@ class SessionStore:
                 "progress": {"percent": 0, "message": ""},
                 "result": None,
                 "error": None,
+                "created_at": time.time(),
             }
         return session_id
 
@@ -58,6 +60,23 @@ class SessionStore:
         """Get session data by ID."""
         with self._lock:
             return self._sessions.get(session_id)
+
+    def delete_session(self, session_id: str) -> None:
+        """Explicitly remove a session."""
+        with self._lock:
+            self._sessions.pop(session_id, None)
+
+    def cleanup_expired_sessions(self, max_age_seconds: int = 3600) -> int:
+        """Remove sessions older than max_age_seconds. Returns count removed."""
+        now = time.time()
+        with self._lock:
+            expired = [
+                sid for sid, s in self._sessions.items()
+                if now - s.get("created_at", now) > max_age_seconds
+            ]
+            for sid in expired:
+                del self._sessions[sid]
+        return len(expired)
 
 
 # Export singleton instance

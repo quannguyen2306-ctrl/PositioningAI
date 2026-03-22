@@ -1,177 +1,180 @@
 import { useState } from 'react'
+import { Eye, Cpu } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
-import { ProgressBar } from '../components/ProgressBar'
-import { BusinessCard } from '../components/results/BusinessCard'
+import type { SessionRecord } from '../contexts/AnalysisContext'
+import { DashHeader } from '../components/dashboard/DashHeader'
+import { Sidebar } from '../components/dashboard/Sidebar'
+import { HeroMetrics } from '../components/dashboard/HeroMetrics'
+import { OverviewPanel } from '../components/dashboard/panels/OverviewPanel'
+import { SettingsPanel } from '../components/dashboard/panels/SettingsPanel'
+import { HistoryPanel } from '../components/dashboard/panels/HistoryPanel'
 import { EvaluationTable } from '../components/results/EvaluationTable'
 import { PCAViz } from '../components/results/PCAViz'
 import { RecommendationsList } from '../components/results/RecommendationsList'
 import { MultiEngineComparison } from '../components/results/MultiEngineComparison'
+import type { NavSection } from '../components/dashboard/Sidebar'
 
 export function ResultsPage() {
-  const { results, progress, error } = useAnalysis()
-  const [activeTab, setActiveTab] = useState<'evaluation' | 'business' | 'recommendations' | 'engines'>('evaluation')
+  const { results, progress, error, sessionHistory, restoreSession, deleteSession, clearAllSessions, analysisRequest } = useAnalysis()
+  const [activeSection, setActiveSection] = useState<NavSection>('overview')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const handleRestoreSession = (record: SessionRecord) => {
+    restoreSession(record)
+    setActiveSection('overview')
+  }
 
   const isLoading = !results && progress?.status !== 'completed'
 
-  if (!results && isLoading && progress) {
+  // Loading state — analysis in progress
+  if (!results && isLoading) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          backgroundColor: '#0f1117',
-          color: '#c9d1d9',
-          padding: '40px 20px',
-        }}
-      >
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '32px', textAlign: 'center' }}>
-            Analyzing Your Business
-          </h1>
-          <ProgressBar percent={progress.percent} message={progress.message} />
-        </div>
-      </div>
-    )
-  }
+      <div className="min-h-screen bg-base text-text-primary flex items-center justify-center px-5">
+        <div className="w-full max-w-md">
+          <div className="card p-8 relative overflow-hidden">
+            {/* Sweep bar at bottom of card */}
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-subtle overflow-hidden rounded-b-2xl">
+              <div className="h-full w-1/3 bg-accent rounded-full animate-sweep" />
+            </div>
 
-  if (error) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          backgroundColor: '#0f1117',
-          color: '#c9d1d9',
-          padding: '40px 20px',
-        }}
-      >
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <div
-            style={{
-              padding: '20px',
-              backgroundColor: '#da3633',
-              border: '1px solid #f85149',
-              borderRadius: '8px',
-              color: '#fff',
-            }}
-          >
-            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
-              Analysis Failed
-            </h2>
-            <p>{error}</p>
+            <div className="flex flex-col items-center text-center gap-6">
+              <div className="relative">
+                <div className="absolute inset-0 bg-accent rounded-full blur-2xl opacity-20 animate-pulse" />
+                <Eye size={36} className="text-accent relative z-10" strokeWidth={1.5} />
+              </div>
+
+              <div>
+                <h2 className="font-display text-xl font-bold text-text-primary mb-1">
+                  Analysing Your Business
+                </h2>
+                <p className="text-text-secondary text-sm">
+                  {progress?.message || 'Connecting to analysis pipeline...'}
+                </p>
+              </div>
+
+              {progress && (
+                <div className="w-full space-y-2">
+                  <div className="flex justify-between text-xs text-text-muted">
+                    <span>Progress</span>
+                    <span className="font-mono">{progress.percent}%</span>
+                  </div>
+                  <div className="h-1.5 bg-subtle rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-accent rounded-full transition-all duration-300"
+                      style={{ width: `${progress.percent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-base text-text-primary flex items-center justify-center px-5">
+        <div className="w-full max-w-lg">
+          <div className="bg-score-low/10 border border-score-low rounded-2xl px-6 py-5">
+            <h2 className="font-display font-bold text-lg text-score-low mb-2">Analysis Failed</h2>
+            <p className="text-text-secondary text-sm">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // No results (shouldn't happen normally)
   if (!results) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          backgroundColor: '#0f1117',
-          color: '#c9d1d9',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <p style={{ color: '#8b949e' }}>No results available</p>
+      <div className="min-h-screen bg-base text-text-primary flex items-center justify-center">
+        <p className="text-text-muted">No results available</p>
       </div>
     )
   }
 
   const visibilityScore = results.eval.avg_visibility_score
-  const scoreColor = visibilityScore >= 7 ? '#238636' : visibilityScore >= 4 ? '#d29922' : '#da3633'
+  const mentionRate = results.eval.mention_rate * 100
+  const highCount = results.eval.score_breakdown['high (8-10)']
+  const competitorCount = results.comp_docs.length
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0f1117', color: '#c9d1d9' }}>
+    <div className="flex flex-col h-screen bg-base animate-fade-up">
+      <DashHeader
+        onSettingsClick={() => setActiveSection('settings')}
+        onMenuClick={() => setSidebarOpen(true)}
+      />
 
-      {/* ── Compact top bar ── */}
-      <div style={{ borderBottom: '1px solid #21262d', padding: '14px 24px' }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          activeSection={activeSection}
+          onNavigate={(s) => {
+            setActiveSection(s)
+            setSidebarOpen(false)
+          }}
+          testCount={results.eval.total_questions}
+          historyCount={sessionHistory.length}
+          hasEngines={!!results.multi_engine}
+          mobileOpen={sidebarOpen}
+          onMobileClose={() => setSidebarOpen(false)}
+        />
 
-          {/* Business name + meta */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-            <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
-              {results.biz.business_name}
-            </h1>
-            {results.biz.industry && (
-              <span style={{ fontSize: '13px', color: '#8b949e' }}>{results.biz.industry}</span>
+        <main className="flex-1 overflow-y-auto">
+          <HeroMetrics
+            avgScore={visibilityScore}
+            mentionRate={mentionRate}
+            highCount={highCount}
+            competitorCount={competitorCount}
+          />
+
+          {/* Content panel — key triggers re-mount + fade-in on section switch */}
+          <div key={activeSection} className="p-5 section-panel">
+            {activeSection === 'overview' && (
+              <OverviewPanel
+                results={results}
+                businessUrl={analysisRequest?.url ?? ''}
+                onGoToRecommendations={() => setActiveSection('recommendations')}
+              />
             )}
-            {results.biz.location && (
-              <span style={{ fontSize: '12px', color: '#58a6ff', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', padding: '1px 6px' }}>
-                {results.biz.location}
-              </span>
+            {activeSection === 'evaluation' && (
+              <EvaluationTable evalData={results.eval} />
+            )}
+            {activeSection === 'positioning' && (
+              <PCAViz
+                coords={results.coords}
+                pcaMeta={results.pca_meta}
+                interps={results.interps}
+              />
+            )}
+            {activeSection === 'recommendations' && (
+              <RecommendationsList recs={results.recs} />
+            )}
+            {activeSection === 'engines' && (
+              results.multi_engine
+                ? <MultiEngineComparison data={results.multi_engine} />
+                : (
+                  <div className="card p-8 text-center">
+                    <Cpu size={32} className="text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+                    <p className="text-text-secondary text-sm">
+                      No multi-engine data available. Provide Anthropic, Google, or Perplexity API keys to enable cross-engine comparison.
+                    </p>
+                  </div>
+                )
+            )}
+            {activeSection === 'settings' && <SettingsPanel />}
+            {activeSection === 'history' && (
+              <HistoryPanel
+                sessions={sessionHistory}
+                onRestore={handleRestoreSession}
+                onDelete={deleteSession}
+                onClearAll={clearAllSessions}
+              />
             )}
           </div>
-
-          {/* 4 stats inline */}
-          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '22px', fontWeight: 'bold', color: scoreColor }}>{visibilityScore.toFixed(1)}</span>
-              <span style={{ fontSize: '11px', color: '#8b949e' }}>/ 10 visibility</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#1f6feb' }}>{results.eval.mention_rate.toFixed(0)}%</span>
-              <span style={{ fontSize: '11px', color: '#8b949e' }}>mention rate</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#79c0ff' }}>{results.comp_docs.length}</span>
-              <span style={{ fontSize: '11px', color: '#8b949e' }}>competitors</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#79c0ff' }}>{results.eval.total_questions}</span>
-              <span style={{ fontSize: '11px', color: '#8b949e' }}>questions tested</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Main: Positioning Map ── */}
-      <div style={{ borderBottom: '1px solid #21262d', padding: '20px 24px' }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-          <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#c9d1d9' }}>Positioning Map</span>
-            <span style={{ fontSize: '11px', color: '#8b949e' }}>— where your business sits in AI semantic space vs competitors</span>
-          </div>
-          <PCAViz coords={results.coords} pcaMeta={results.pca_meta} interps={results.interps} />
-        </div>
-      </div>
-
-      {/* ── Tabs for remaining sections ── */}
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 24px' }}>
-        <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #21262d', marginBottom: '20px', paddingTop: '16px' }}>
-          {[
-            { id: 'evaluation' as const, label: 'AI Visibility Tests' },
-            ...(results.multi_engine ? [{ id: 'engines' as const, label: 'AI Engine Comparison' }] : []),
-            { id: 'business' as const, label: 'Business Profile' },
-            { id: 'recommendations' as const, label: 'Recommendations' },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '8px 16px',
-                fontSize: '13px',
-                backgroundColor: 'transparent',
-                color: activeTab === tab.id ? '#c9d1d9' : '#8b949e',
-                border: 'none',
-                borderBottom: activeTab === tab.id ? '2px solid #238636' : '2px solid transparent',
-                cursor: 'pointer',
-                marginBottom: '-1px',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ paddingBottom: '40px' }}>
-          {activeTab === 'business' && <BusinessCard business={results.biz} competitors={results.comp_docs} />}
-          {activeTab === 'evaluation' && <EvaluationTable evalData={results.eval} />}
-          {activeTab === 'engines' && results.multi_engine && <MultiEngineComparison data={results.multi_engine} />}
-          {activeTab === 'recommendations' && <RecommendationsList recs={results.recs} />}
-        </div>
+        </main>
       </div>
     </div>
   )

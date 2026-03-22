@@ -136,6 +136,7 @@ export interface AnalysisResponse {
 }
 
 export type WsEvent =
+  | { type: 'heartbeat' }
   | { type: 'progress'; percent: number; message: string }
   | { type: 'result'; data: AnalysisResult }
   | { type: 'error'; message: string };

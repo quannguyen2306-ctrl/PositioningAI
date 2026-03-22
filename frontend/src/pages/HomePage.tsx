@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, ChevronDown } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import type { AnalysisRequest } from '../api/types'
 
@@ -16,9 +17,11 @@ export function HomePage() {
   const [googleKey, setGoogleKey] = useState('')
   const [anthropicKey, setAnthropicKey] = useState('')
   const [perplexityKey, setPerplexityKey] = useState('')
-  const [showEngineKeys, setShowEngineKeys] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false)
+  const [showSerperKey, setShowSerperKey] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const isFormValid = url.trim() && openaiKey.trim() && serperKey.trim()
 
@@ -52,48 +55,35 @@ export function HomePage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to start analysis'
       setError(message)
+    } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: '#0f1117',
-        color: '#c9d1d9',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-    >
-      <div style={{ width: '100%', maxWidth: '600px' }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <h1 style={{ fontSize: '36px', fontWeight: 'bold', marginBottom: '12px' }}>
-            🔍 LLM Visibility Diagnostic
+    <div className="min-h-screen bg-base text-text-primary flex items-center justify-center px-5 py-12">
+      <div className="w-full max-w-2xl">
+        {/* Header with Icon */}
+        <div className="text-center mb-16">
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-accent rounded-full blur-2xl opacity-30 animate-pulse" />
+              <Eye size={48} className="text-accent relative z-10" strokeWidth={1.5} />
+            </div>
+          </div>
+          <h1 className="font-display text-4xl font-bold mb-3 text-text-primary">
+            LLM Visibility Diagnostic
           </h1>
-          <p style={{ fontSize: '16px', color: '#8b949e' }}>
+          <p className="text-lg text-text-muted">
             See how AI sees your business — and what to fix.
           </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* URL Input */}
+        {/* Main Form Card */}
+        <form onSubmit={handleSubmit} className="card space-y-6">
+          {/* URL Input Section */}
           <div>
-            <label
-              htmlFor="url"
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#8b949e',
-                textTransform: 'uppercase',
-                marginBottom: '8px',
-              }}
-            >
+            <label htmlFor="url" className="input-label">
               Your Website URL
             </label>
             <input
@@ -102,286 +92,229 @@ export function HomePage() {
               placeholder="https://yourcompany.com"
               value={url}
               onChange={e => setUrl(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                fontSize: '14px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '6px',
-                color: '#c9d1d9',
-                boxSizing: 'border-box',
-              }}
               disabled={loading}
+              className="input-base"
             />
           </div>
 
-          {/* OpenAI Key */}
-          <div>
-            <label
-              htmlFor="openaiKey"
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#8b949e',
-                textTransform: 'uppercase',
-                marginBottom: '8px',
-              }}
-            >
-              OpenAI API Key
-            </label>
-            <input
-              id="openaiKey"
-              type="password"
-              placeholder="sk-..."
-              value={openaiKey}
-              onChange={e => setOpenaiKey(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                fontSize: '14px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '6px',
-                color: '#c9d1d9',
-                boxSizing: 'border-box',
-              }}
-              disabled={loading}
-            />
-          </div>
+          {/* Divider */}
+          <div className="border-t border-subtle" />
 
-          {/* Serper Key */}
-          <div>
-            <label
-              htmlFor="serperKey"
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#8b949e',
-                textTransform: 'uppercase',
-                marginBottom: '8px',
-              }}
-            >
-              Serper API Key{' '}
-              <a
-                href="https://serper.dev"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: '#58a6ff', textDecoration: 'none', fontSize: '11px' }}
-              >
-                (Free at serper.dev)
-              </a>
-            </label>
-            <input
-              id="serperKey"
-              type="password"
-              placeholder="..."
-              value={serperKey}
-              onChange={e => setSerperKey(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                fontSize: '14px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '6px',
-                color: '#c9d1d9',
-                boxSizing: 'border-box',
-              }}
-              disabled={loading}
-            />
-          </div>
-
-          {/* Sliders */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          {/* Required API Keys */}
+          <div className="space-y-5">
+            {/* OpenAI Key */}
             <div>
-              <label
-                htmlFor="nCompetitors"
-                style={{
-                  display: 'block',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  color: '#8b949e',
-                  textTransform: 'uppercase',
-                  marginBottom: '8px',
-                }}
-              >
-                Competitors: {nCompetitors}
+              <label htmlFor="openaiKey" className="input-label">
+                OpenAI API Key
               </label>
-              <input
-                id="nCompetitors"
-                type="range"
-                min="5"
-                max="20"
-                value={nCompetitors}
-                onChange={e => setNCompetitors(parseInt(e.target.value))}
-                style={{ width: '100%' }}
-                disabled={loading}
-              />
-              <div style={{ fontSize: '10px', color: '#8b949e', marginTop: '4px' }}>
-                5 - 20
+              <div className="relative">
+                <input
+                  id="openaiKey"
+                  type={showOpenaiKey ? 'text' : 'password'}
+                  placeholder="sk-..."
+                  value={openaiKey}
+                  onChange={e => setOpenaiKey(e.target.value)}
+                  disabled={loading}
+                  className="input-base pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                  disabled={loading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40"
+                  aria-label={showOpenaiKey ? 'Hide OpenAI key' : 'Show OpenAI key'}
+                >
+                  {showOpenaiKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
+            {/* Serper Key */}
             <div>
-              <label
-                htmlFor="nQuestions"
-                style={{
-                  display: 'block',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  color: '#8b949e',
-                  textTransform: 'uppercase',
-                  marginBottom: '8px',
-                }}
-              >
-                Questions: {nQuestions}
+              <label htmlFor="serperKey" className="input-label">
+                Serper API Key{' '}
+                <a
+                  href="https://serper.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-light hover:text-accent text-xs font-normal"
+                >
+                  (Free at serper.dev)
+                </a>
               </label>
-              <input
-                id="nQuestions"
-                type="range"
-                min="5"
-                max="15"
-                value={nQuestions}
-                onChange={e => setNQuestions(parseInt(e.target.value))}
-                style={{ width: '100%' }}
-                disabled={loading}
-              />
-              <div style={{ fontSize: '10px', color: '#8b949e', marginTop: '4px' }}>
-                5 - 15
+              <div className="relative">
+                <input
+                  id="serperKey"
+                  type={showSerperKey ? 'text' : 'password'}
+                  placeholder="..."
+                  value={serperKey}
+                  onChange={e => setSerperKey(e.target.value)}
+                  disabled={loading}
+                  className="input-base pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSerperKey(!showSerperKey)}
+                  disabled={loading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40"
+                  aria-label={showSerperKey ? 'Hide Serper key' : 'Show Serper key'}
+                >
+                  {showSerperKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Multi-AI Engine Keys (Optional) */}
-          <div>
+          {/* Advanced Settings Collapsible */}
+          <div className="border-t border-subtle pt-4">
             <button
               type="button"
-              onClick={() => setShowEngineKeys(!showEngineKeys)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                width: '100%',
-                padding: '12px 16px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#8b949e',
-                textTransform: 'uppercase',
-                backgroundColor: '#161b22',
-                border: '1px solid #30363d',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              disabled={loading}
+              className="w-full flex items-center justify-between text-text-secondary hover:text-text-primary transition-colors disabled:opacity-40 py-2"
             >
-              <span>{showEngineKeys ? '−' : '+'}</span>
-              Multi-AI Engine Keys (Optional)
-              <span style={{ fontSize: '10px', fontWeight: 'normal', textTransform: 'none', marginLeft: 'auto' }}>
-                Test across ChatGPT, Claude, Gemini, Perplexity
+              <span className="font-display font-semibold text-sm uppercase tracking-widest">
+                Advanced Settings
               </span>
+              <ChevronDown
+                size={18}
+                className={`transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`}
+              />
             </button>
 
-            {showEngineKeys && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', paddingLeft: '12px', borderLeft: '2px solid #30363d' }}>
+            {/* Collapsible Content */}
+            <div
+              className={`advanced-settings ${showAdvanced ? 'open' : ''}`}
+              style={{ overflow: 'hidden', maxHeight: showAdvanced ? '900px' : '0' }}
+            >
+              <div className="pt-4 space-y-6">
+                {/* Sliders Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Competitors Slider */}
+                  <div>
+                    <label htmlFor="nCompetitors" className="input-label">
+                      <span className="font-mono">{nCompetitors}</span> Competitors
+                    </label>
+                    <input
+                      id="nCompetitors"
+                      type="range"
+                      min="5"
+                      max="20"
+                      value={nCompetitors}
+                      onChange={e => setNCompetitors(parseInt(e.target.value))}
+                      disabled={loading}
+                      className="w-full"
+                      style={{ '--slider-fill': `${((nCompetitors - 5) / 15) * 100}%` } as React.CSSProperties}
+                    />
+                    <div className="text-xs text-text-muted mt-2">5 – 20 domains</div>
+                  </div>
+
+                  {/* Questions Slider */}
+                  <div>
+                    <label htmlFor="nQuestions" className="input-label">
+                      <span className="font-mono">{nQuestions}</span> Questions
+                    </label>
+                    <input
+                      id="nQuestions"
+                      type="range"
+                      min="5"
+                      max="15"
+                      value={nQuestions}
+                      onChange={e => setNQuestions(parseInt(e.target.value))}
+                      disabled={loading}
+                      className="w-full"
+                      style={{ '--slider-fill': `${((nQuestions - 5) / 10) * 100}%` } as React.CSSProperties}
+                    />
+                    <div className="text-xs text-text-muted mt-2">5 – 15 questions</div>
+                  </div>
+                </div>
+
+                {/* Custom Questions */}
                 <div>
-                  <label htmlFor="anthropicKey" style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8b949e', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    Anthropic API Key (Claude)
+                  <label htmlFor="customQuestions" className="input-label">
+                    Custom Questions (Optional)
                   </label>
-                  <input
-                    id="anthropicKey"
-                    type="password"
-                    placeholder="sk-ant-..."
-                    value={anthropicKey}
-                    onChange={e => setAnthropicKey(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', fontSize: '14px', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#c9d1d9', boxSizing: 'border-box' }}
+                  <textarea
+                    id="customQuestions"
+                    placeholder="One question per line..."
+                    value={customQuestions}
+                    onChange={e => setCustomQuestions(e.target.value)}
                     disabled={loading}
+                    className="input-base min-h-[100px] font-mono text-sm resize-none"
                   />
                 </div>
-                <div>
-                  <label htmlFor="googleKey" style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8b949e', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    Google API Key (Gemini)
-                  </label>
-                  <input
-                    id="googleKey"
-                    type="password"
-                    placeholder="AIza..."
-                    value={googleKey}
-                    onChange={e => setGoogleKey(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', fontSize: '14px', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#c9d1d9', boxSizing: 'border-box' }}
-                    disabled={loading}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="perplexityKey" style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8b949e', textTransform: 'uppercase', marginBottom: '6px' }}>
-                    Perplexity API Key
-                  </label>
-                  <input
-                    id="perplexityKey"
-                    type="password"
-                    placeholder="pplx-..."
-                    value={perplexityKey}
-                    onChange={e => setPerplexityKey(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', fontSize: '14px', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#c9d1d9', boxSizing: 'border-box' }}
-                    disabled={loading}
-                  />
+
+                {/* Multi-AI Engine Keys (Optional) */}
+                <div className="border-t border-subtle pt-4">
+                  <p className="input-label mb-4">
+                    Multi-AI Engine Keys{' '}
+                    <span className="text-text-muted font-normal normal-case tracking-normal">
+                      — Optional. Test across ChatGPT, Claude, Gemini &amp; Perplexity.
+                    </span>
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="anthropicKey" className="input-label">
+                        Anthropic API Key (Claude)
+                      </label>
+                      <input
+                        id="anthropicKey"
+                        type="password"
+                        placeholder="sk-ant-..."
+                        value={anthropicKey}
+                        onChange={e => setAnthropicKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="googleKey" className="input-label">
+                        Google API Key (Gemini)
+                      </label>
+                      <input
+                        id="googleKey"
+                        type="password"
+                        placeholder="AIza..."
+                        value={googleKey}
+                        onChange={e => setGoogleKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="perplexityKey" className="input-label">
+                        Perplexity API Key
+                      </label>
+                      <input
+                        id="perplexityKey"
+                        type="password"
+                        placeholder="pplx-..."
+                        value={perplexityKey}
+                        onChange={e => setPerplexityKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* Custom Questions */}
-          <div>
-            <label
-              htmlFor="customQuestions"
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#8b949e',
-                textTransform: 'uppercase',
-                marginBottom: '8px',
-              }}
-            >
-              Custom Questions (Optional)
-            </label>
-            <textarea
-              id="customQuestions"
-              placeholder="One question per line..."
-              value={customQuestions}
-              onChange={e => setCustomQuestions(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                fontSize: '14px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
-                borderRadius: '6px',
-                color: '#c9d1d9',
-                boxSizing: 'border-box',
-                minHeight: '80px',
-                fontFamily: 'monospace',
-                resize: 'vertical',
-              }}
-              disabled={loading}
-            />
+            </div>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div
-              style={{
-                padding: '12px 16px',
-                backgroundColor: '#da3633',
-                border: '1px solid #f85149',
-                borderRadius: '6px',
-                color: '#fff',
-                fontSize: '13px',
-              }}
-            >
-              {error}
+            <div className="bg-score-low/10 border border-score-low rounded-lg px-4 py-3">
+              <p className="text-score-low text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Loading Indicator */}
+          {loading && (
+            <div className="bg-accent/5 border border-accent rounded-lg px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                <p className="text-text-secondary text-sm">Analyzing your business...</p>
+              </div>
             </div>
           )}
 
@@ -389,37 +322,18 @@ export function HomePage() {
           <button
             type="submit"
             disabled={!isFormValid || loading}
-            style={{
-              padding: '12px 24px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              backgroundColor: isFormValid && !loading ? '#238636' : '#30363d',
-              color: isFormValid && !loading ? '#fff' : '#8b949e',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: isFormValid && !loading ? 'pointer' : 'not-allowed',
-              transition: 'background-color 0.2s',
-            }}
-            onMouseEnter={e => {
-              if (isFormValid && !loading) {
-                (e.target as HTMLButtonElement).style.backgroundColor = '#2ea043'
-              }
-            }}
-            onMouseLeave={e => {
-              if (isFormValid && !loading) {
-                (e.target as HTMLButtonElement).style.backgroundColor = '#238636'
-              }
-            }}
+            className="btn-accent w-full"
           >
-            {loading ? 'Analysing...' : 'Analyse →'}
+            {loading ? 'Analyzing...' : 'Analyze →'}
           </button>
         </form>
 
         {/* Footer */}
-        <div style={{ marginTop: '48px', textAlign: 'center', color: '#8b949e', fontSize: '12px' }}>
+        <div className="mt-12 text-center text-text-muted text-sm space-y-2">
           <p>
             This tool analyzes how LLMs perceive your business compared to competitors.
-            <br />
+          </p>
+          <p>
             All analysis happens securely using your own API keys.
           </p>
         </div>

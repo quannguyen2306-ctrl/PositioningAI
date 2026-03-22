@@ -69,8 +69,8 @@ async def stream_analysis(
     def progress_cb(pct: int, msg: str):
         q.put({"event": "progress", "pct": pct, "step": msg})
 
-    def result_cb(event_name: str, payload: dict):
-        q.put({"event": event_name, **payload})
+    def event_cb(event_dict: dict):
+        q.put(event_dict)
 
     def run_pipeline():
         try:
@@ -82,13 +82,12 @@ async def stream_analysis(
                 n_questions=n_questions,
                 custom_questions=parsed_questions,
                 progress_callback=progress_cb,
-                result_callback=result_cb,
+                event_callback=event_cb,
                 google_api_key=resolved_google,
                 anthropic_api_key=resolved_anthropic,
                 perplexity_api_key=resolved_perplexity,
             )
             pipeline.run()
-            q.put({"event": "complete"})
         except Exception as e:
             q.put({"event": "error", "message": str(e)})
         finally:

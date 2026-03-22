@@ -39,7 +39,7 @@ class AnalysisPipeline:
         n_questions: int = 10,
         custom_questions: list[str] | None = None,
         progress_callback=None,
-        result_callback=None,
+        event_callback=None,
         google_api_key: str = "",
         anthropic_api_key: str = "",
         perplexity_api_key: str = "",
@@ -52,7 +52,7 @@ class AnalysisPipeline:
         self.n_questions = n_questions
         self.custom_questions = custom_questions
         self.progress_callback = progress_callback
-        self.result_callback = result_callback
+        self.event_callback = event_callback
 
         # Multi-engine API keys
         self.google_api_key = google_api_key
@@ -79,10 +79,10 @@ class AnalysisPipeline:
             percent = int((stage / total_stages) * 100)
             self.progress_callback(percent, message)
 
-    def _report_result(self, event: str, payload: dict):
-        """Helper to call result callback with intermediate results."""
-        if self.result_callback:
-            self.result_callback(event, payload)
+    def _emit(self, event_type: str, data: dict):
+        """Helper to fire an SSE-style event via event_callback."""
+        if self.event_callback:
+            self.event_callback({"event": event_type, **data})
 
     def run(self) -> dict:
         """
@@ -98,7 +98,7 @@ class AnalysisPipeline:
         # --- Stage 2: Extract business context ---
         self._report_progress(2, total_stages, "Extracting business information...")
         self.business_context = extract_business_context(self.user_text, self.openai_client)
-        self._report_result("profile", {"data": self.business_context})
+        self._emit("profile", {"data": self.business_context})
 
         # --- Stage 3: Search for competitors ---
         self._report_progress(3, total_stages, "Searching for competitors...")
@@ -108,7 +108,7 @@ class AnalysisPipeline:
             self.serper_api_key,
             n=self.n_competitors,
         )
-        self._report_result("competitors", {"competitors": competitor_urls})
+        self._emit("competitors", {"competitors": competitor_urls})
 
         # --- Stage 4: Fetch competitor documents ---
         self._report_progress(4, total_stages, f"Fetching {len(competitor_urls)} competitor websites...")
@@ -150,7 +150,7 @@ class AnalysisPipeline:
         )
         # Limit to requested number
         test_questions = test_questions[:self.n_questions]
-        self._report_result("questions", {"questions": test_questions})
+        self._emit("questions", {"questions": test_questions})
 
         # --- Stage 8: Run RAG evaluation ---
         self._report_progress(8, total_stages, "Evaluating visibility in AI responses...")
@@ -161,7 +161,12 @@ class AnalysisPipeline:
             self.business_context.get("business_name", "Your Business"),
             progress_callback=None,  # Sub-progress handled internally
         )
-        self._report_result("eval", {"eval": self.eval_results})
+        # Normalise mention_rate to 0.0–1.0 fraction (frontend multiplies by 100)
+        eval_for_sse = {
+            **self.eval_results,
+            "mention_rate": round(self.eval_results["mention_rate"] / 100, 4),
+        }
+        self._emit("eval", {"eval": eval_for_sse})
 
         # --- Stage 9: Multi-engine evaluation ---
         api_keys = {
@@ -181,6 +186,7 @@ class AnalysisPipeline:
                 self.openai_client,
                 progress_callback=self.progress_callback,
             )
+            self._emit("multi_engine", {"data": self.multi_engine_results})
         else:
             self._report_progress(9, total_stages, "Skipping multi-engine test (no extra API keys)...")
 
@@ -197,21 +203,6 @@ class AnalysisPipeline:
             n_samples=5,
         )
 
-        # Emit PCA results
-        pca_points = [
-            {
-                "components": self.coords[i].tolist(),
-                "source": m["source"],
-                "domain": m["domain"],
-                "text": m.get("text", "")[:200],
-            }
-            for i, m in enumerate(metadata)
-        ]
-        self._report_result("pca", {
-            "points": pca_points,
-            "interpretations": self.interpretations,
-        })
-
         self.plot_2d_fig = plot_2d(
             self.coords,
             metadata,
@@ -226,6 +217,18 @@ class AnalysisPipeline:
             self.business_context.get("business_name", "Your Business"),
         )
 
+        # Build PCA points for SSE (coords rows + metadata)
+        pca_points = [
+            {
+                "components": self.coords[i].tolist(),
+                "source": metadata[i]["source"],
+                "domain": metadata[i]["domain"],
+                "text": metadata[i].get("text", "")[:200],
+            }
+            for i in range(len(self.coords))
+        ]
+        self._emit("pca", {"points": pca_points, "interpretations": self.interpretations})
+
         self.recommendations = generate_recommendations(
             self.business_context,
             self.eval_results,
@@ -233,7 +236,8 @@ class AnalysisPipeline:
             self.competitor_docs,
             self.openai_client,
         )
-        self._report_result("recommendations", {"recs": self.recommendations})
+        self._emit("recommendations", {"recs": self.recommendations})
+        self._emit("complete", {})
 
         return self._compile_results()
 
