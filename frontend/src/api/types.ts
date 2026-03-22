@@ -148,6 +148,11 @@ export interface AnalysisResponse {
   error?: string;
 }
 
+export interface RecommendationResult {
+  recommendations: string[]
+  content_draft: string
+}
+
 export type WsEvent =
   | { type: 'heartbeat' }
   | { type: 'progress'; percent: number; message: string }

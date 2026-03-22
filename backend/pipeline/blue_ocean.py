@@ -177,12 +177,15 @@ def classify_archetype(
 def find_blue_ocean_zones(
     coords: np.ndarray,
     pca_meta: list[dict],
-    grid_size: int = 25,
+    grid_size: int = 20,
     top_n: int = 5,
 ) -> list[dict]:
     """
     Scan the 2D PCA space on a grid and identify low-density regions —
     semantic territories unclaimed by any business's content.
+
+    Searches strictly within the convex hull of the data so zones always
+    appear inside the visible map area, never in the empty margins.
 
     Returns up to `top_n` zones, each with {x, y, radius, label}.
     """
@@ -193,39 +196,49 @@ def find_blue_ocean_zones(
     x_min, x_max = float(pts[:, 0].min()), float(pts[:, 0].max())
     y_min, y_max = float(pts[:, 1].min()), float(pts[:, 1].max())
 
-    # Expand bounds so zones near edges are discoverable
-    margin_x = (x_max - x_min) * 0.25
-    margin_y = (y_max - y_min) * 0.25
-    x_min -= margin_x; x_max += margin_x
-    y_min -= margin_y; y_max += margin_y
+    # NO margin expansion — zones must fall inside the actual data range
+    x_range = x_max - x_min or 1.0
+    y_range = y_max - y_min or 1.0
 
-    x_step = (x_max - x_min) / grid_size
-    y_step = (y_max - y_min) / grid_size
-    detection_radius = max(x_step, y_step) * 1.5
+    # Detection radius: ~1/10 of the data spread so we catch genuine gaps
+    detection_radius = min(x_range, y_range) / 10.0
 
     x_grid = np.linspace(x_min, x_max, grid_size)
     y_grid = np.linspace(y_min, y_max, grid_size)
 
-    zones: list[dict] = []
+    # Collect candidate zones sorted by distance to nearest point (most isolated first)
+    candidates: list[tuple[float, float, float]] = []  # (min_dist, x, y)
 
     for x in x_grid:
         for y in y_grid:
-            # Count how many content chunks are near this grid point
             distances = np.sqrt(((pts - np.array([x, y])) ** 2).sum(axis=1))
+            min_dist = float(distances.min())
             nearby = int((distances < detection_radius).sum())
 
-            if nearby == 0:
-                # Check this zone isn't too close to an already-found zone
-                too_close = any(
-                    np.sqrt((x - z["x"]) ** 2 + (y - z["y"]) ** 2) < detection_radius * 2
-                    for z in zones
-                )
-                if not too_close:
-                    zones.append({
-                        "x": round(x, 4),
-                        "y": round(y, 4),
-                        "radius": round(detection_radius, 4),
-                        "label": "Unclaimed Territory",
-                    })
+            # A blue ocean zone: few neighbours and meaningfully far from any point
+            if nearby <= 1 and min_dist > detection_radius * 0.8:
+                candidates.append((min_dist, x, y))
 
-    return zones[:top_n]
+    # Sort by most isolated first
+    candidates.sort(key=lambda c: -c[0])
+
+    zones: list[dict] = []
+    min_zone_separation = detection_radius * 2.5
+
+    for min_dist, x, y in candidates:
+        # Ensure zones are spread out (no cluster of unclaimed markers)
+        too_close = any(
+            np.sqrt((x - z["x"]) ** 2 + (y - z["y"]) ** 2) < min_zone_separation
+            for z in zones
+        )
+        if not too_close:
+            zones.append({
+                "x": round(x, 4),
+                "y": round(y, 4),
+                "radius": round(detection_radius, 4),
+                "label": "Unclaimed Territory",
+            })
+        if len(zones) >= top_n:
+            break
+
+    return zones

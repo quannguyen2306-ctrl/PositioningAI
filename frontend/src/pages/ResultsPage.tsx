@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import OceanMap, { type OceanPoint } from '../components/ocean/OceanMap'
 import ArchetypeCard from '../components/ocean/ArchetypeCard'
-import BlueOceanPanel from '../components/ocean/BlueOceanPanel'
 import FishLegend from '../components/ocean/FishLegend'
 import ContentLab from '../components/ocean/ContentLab'
+import RecommendationLab from '../components/ocean/RecommendationLab'
 import type { PcaInterpretation } from '../api/types'
 
 type Tab = 'map' | 'eval' | 'recommendations'
@@ -15,8 +15,21 @@ export default function ResultsPage() {
   const { results, progress, error, clearSession, contentLabResult } = useAnalysis()
   const [hoveredDomain, setHoveredDomain] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('map')
-  const [contentLabOpen, setContentLabOpen] = useState(false)
+  const [contentLabOpen, setContentLabOpen] = useState(true)
   const [expandedQ, setExpandedQ] = useState<number | null>(null)
+
+  // Right panel tab
+  const [rightTab, setRightTab] = useState<'reclab' | 'contentlab'>('reclab')
+
+  // Recommendation Lab state
+  const [recLabEnabled, setRecLabEnabled] = useState(false)
+  const [pickPointMode, setPickPointMode] = useState(false)
+  const [recommendationTarget, setRecommendationTarget] = useState<{ x: number; y: number } | null>(null)
+  const [contentLabPrefill, setContentLabPrefill] = useState('')
+
+  const handleMapClick = useCallback((dataX: number, dataY: number) => {
+    setRecommendationTarget({ x: dataX, y: dataY })
+  }, [])
 
   // Build OceanPoints from coords + pca_meta
   const points: OceanPoint[] = useMemo(() => {
@@ -41,9 +54,34 @@ export default function ResultsPage() {
     }))
   }, [contentLabResult])
 
+  // Canonical domain order from PCA points — shared by OceanMap and FishLegend
+  // so fish emojis and colors are always consistent between map and legend.
+  const domains = useMemo(() => {
+    const seen = new Set<string>()
+    const list: string[] = []
+    for (const p of points) {
+      if (p.source === 'competitor' && p.domain && !seen.has(p.domain)) {
+        seen.add(p.domain)
+        list.push(p.domain)
+      }
+    }
+    return list
+  }, [points])
+
+  // User centroid in PCA data coordinates (for recommendation lab)
+  const userCentroid = useMemo(() => {
+    const userPts = points.filter(p => p.source === 'user')
+    if (!userPts.length) return null
+    const x = userPts.reduce((s, p) => s + p.x, 0) / userPts.length
+    const y = userPts.reduce((s, p) => s + p.y, 0) / userPts.length
+    return { x, y }
+  }, [points])
+
   const interps: PcaInterpretation[] = results?.interps ?? []
   const archetype = contentLabResult?.archetype ?? results?.archetype
-  const blueOceanZones = contentLabResult?.blue_ocean_zones ?? results?.blue_ocean_zones ?? []
+  // Keep original zones stable for recommendation lab (numbered Zone 1/2/3…).
+  // Content Lab re-runs zone detection but we don't renumber — use original on map/rec lab.
+  const blueOceanZones = results?.blue_ocean_zones ?? []
   const blueOceanOpps = contentLabResult?.blue_ocean_opportunities ?? results?.blue_ocean_opportunities ?? []
   const evalResults = contentLabResult?.eval ?? results?.eval
   const avgScore = evalResults?.avg_visibility_score ?? 0
@@ -91,12 +129,11 @@ export default function ResultsPage() {
       style={{
         height: '100vh',
         display: 'grid',
-        gridTemplateRows: 'auto 1fr auto',
-        gridTemplateColumns: '240px 1fr 280px',
+        gridTemplateRows: 'auto 1fr',
+        gridTemplateColumns: '240px 1fr 320px',
         gridTemplateAreas: `
           "header header header"
           "left   main   right"
-          "lab    lab    lab"
         `,
         overflow: 'hidden',
         gap: 0,
@@ -198,7 +235,7 @@ export default function ResultsPage() {
             OCEAN TERRITORY
           </div>
           <FishLegend
-            compDocs={results.comp_docs}
+            domains={domains}
             userBizName={biz.business_name}
             topDomains={topDomains}
             onHover={setHoveredDomain}
@@ -248,7 +285,12 @@ export default function ResultsPage() {
               blueOceanZones={blueOceanZones}
               userBizName={biz.business_name}
               highlightedDomain={hoveredDomain}
+              domains={domains}
               contentLabPoints={contentLabPoints}
+              recommendationMode={recLabEnabled}
+              pickPointMode={pickPointMode}
+              recommendationTarget={recommendationTarget}
+              onMapClick={handleMapClick}
             />
           </div>
         )}
@@ -423,53 +465,75 @@ export default function ResultsPage() {
       </main>
 
       {/* ── RIGHT PANEL ── */}
+      {/* ── RIGHT PANEL ── */}
       <aside style={{
         gridArea: 'right',
-        padding: '16px 12px',
-        overflowY: 'auto',
         borderLeft: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
+        overflow: 'hidden',
       }}>
-        <div>
-          <BlueOceanPanel opportunities={blueOceanOpps} />
+        {/* Tab bar */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'rgba(0,8,20,0.6)',
+          flexShrink: 0,
+        }}>
+          {([['reclab', '🧭 Rec Lab'], ['contentlab', '🧪 Content Lab']] as const).map(([tab, label]) => (
+            <button
+              key={tab}
+              onClick={() => setRightTab(tab)}
+              style={{
+                flex: 1, padding: '10px 6px', fontSize: 11, fontWeight: 600,
+                background: rightTab === tab ? 'rgba(0,180,216,0.08)' : 'transparent',
+                border: 'none',
+                borderBottom: rightTab === tab ? '2px solid var(--glow-blue)' : '2px solid transparent',
+                color: rightTab === tab ? 'var(--glow-blue)' : 'var(--text-muted)',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* Business details */}
-        <div className="glass-light" style={{ padding: '12px 14px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 10 }}>
-            BUSINESS PROFILE
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 4, fontWeight: 600 }}>
-            {biz.business_name}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>{biz.industry}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>{biz.location}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            {biz.unique_value_prop}
-          </div>
-          {biz.products_services.length > 0 && (
-            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {biz.products_services.slice(0, 5).map((s, i) => (
-                <span key={i} style={{ fontSize: 10, padding: '2px 8px', background: 'rgba(0,53,102,0.6)', border: '1px solid var(--border-subtle)', borderRadius: 99, color: 'var(--text-secondary)' }}>
-                  {s}
-                </span>
-              ))}
-            </div>
+        {/* Panel content — only the active tab is visible, fills remaining height */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
+          {rightTab === 'reclab' && (
+            <RecommendationLab
+              enabled={recLabEnabled}
+              onToggle={() => {
+                setRecLabEnabled(v => !v)
+                if (recLabEnabled) { setPickPointMode(false); setRecommendationTarget(null) }
+              }}
+              blueOceanZones={blueOceanZones}
+              interpretations={interps}
+              userCentroid={userCentroid}
+              pickPointMode={pickPointMode}
+              onSetPickMode={(active) => {
+                setPickPointMode(active)
+                // Pin persists until user clicks "Remove Pin" or disables rec lab
+              }}
+              onRemovePin={() => setRecommendationTarget(null)}
+              recommendationTarget={recommendationTarget}
+              onPrefillContentLab={(draft) => {
+                setContentLabPrefill(draft)
+                setContentLabOpen(true)
+                setRightTab('contentlab')   // auto-switch to Content Lab tab
+              }}
+            />
+          )}
+
+          {rightTab === 'contentlab' && (
+            <ContentLab
+              isOpen={contentLabOpen}
+              onToggle={() => setContentLabOpen(v => !v)}
+              prefillText={contentLabPrefill}
+            />
           )}
         </div>
       </aside>
-
-      {/* ── CONTENT LAB (bottom) ── */}
-      <div style={{
-        gridArea: 'lab',
-        borderTop: '1px solid var(--border-subtle)',
-        background: 'rgba(0,8,20,0.9)',
-        backdropFilter: 'blur(8px)',
-      }}>
-        <ContentLab isOpen={contentLabOpen} onToggle={() => setContentLabOpen(v => !v)} />
-      </div>
     </div>
   )
 }

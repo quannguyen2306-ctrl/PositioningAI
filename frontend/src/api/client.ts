@@ -171,6 +171,34 @@ export function urlsToCompDocs(urls: string[]): CompDoc[] {
   })
 }
 
+/** Generate targeted content recommendations toward a chosen map position. */
+export async function generateRecommendation(
+  sessionId: string,
+  targetX: number,
+  targetY: number,
+  currentX: number,
+  currentY: number,
+  openaiKey: string
+) {
+  const res = await fetch(`${BASE}/api/recommendation/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: sessionId,
+      target_x: targetX,
+      target_y: targetY,
+      current_x: currentX,
+      current_y: currentY,
+      openai_key: openaiKey,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(err || `Recommendation error: ${res.status}`)
+  }
+  return res.json()
+}
+
 /** Submit new content to the Content Lab endpoint for re-evaluation. */
 export async function submitContentLab(
   sessionId: string,

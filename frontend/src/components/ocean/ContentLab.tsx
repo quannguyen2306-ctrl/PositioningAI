@@ -1,14 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAnalysis } from '../../contexts/AnalysisContext'
 
 interface Props {
   isOpen: boolean
   onToggle: () => void
+  prefillText?: string    // set by RecommendationLab to pre-load a draft
 }
 
-export default function ContentLab({ isOpen, onToggle }: Props) {
+export default function ContentLab({ isOpen, onToggle, prefillText }: Props) {
   const { submitToContentLab, contentLabLoading, contentLabError, contentLabResult, clearContentLab, backendSessionId } = useAnalysis()
   const [text, setText] = useState('')
+
+  // Sync external prefill into textarea
+  useEffect(() => {
+    if (prefillText) {
+      setText(prefillText)
+    }
+  }, [prefillText])
 
   const canSubmit = text.trim().length > 50 && !!backendSessionId && !contentLabLoading
 

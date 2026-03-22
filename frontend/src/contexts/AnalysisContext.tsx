@@ -40,6 +40,7 @@ interface AnalysisContextType {
   setError: (error: string | null) => void
   submitToContentLab: (newContent: string) => Promise<void>
   clearContentLab: () => void
+  openaiKeyRef: React.RefObject<string>
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined)
@@ -227,6 +228,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     setError,
     submitToContentLab,
     clearContentLab,
+    openaiKeyRef,
   }
 
   return (
