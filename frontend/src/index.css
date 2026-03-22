@@ -10,18 +10,75 @@
    ============================================================ */
 
 :root {
-  /* Depths */
-  --abyss: #000814;
-  --trench: #001122;
-  --deep: #001d3d;
-  --mid: #003566;
-  --reef: #004d99;
+  /* ── New Blue Ocean palette ── */
+  --color-text:       #e4f0f6;
+  --color-bg:         #13181d;
+  --color-primary:    #5282af;
+  --color-secondary:  #adccef;
+  --color-accent:     #2c7890;
 
-  /* Bioluminescence */
-  --glow-blue: #00b4d8;
-  --glow-cyan: #48cae4;
-  --glow-bright: #90e0ef;
-  --glow-pale: #caf0f8;
+  /* ── Depth layer backgrounds (OKLCH lightness ladder) ── */
+  --bg-bottom:  oklch(0.10 0.02 210);
+  --bg-mid:     oklch(0.14 0.02 210);
+  --bg-top:     oklch(0.18 0.02 210);
+  --bg-overlay: oklch(0.22 0.02 210);
+
+  /* ── Depth shadows (inset highlight + drop shadows) ── */
+  --shadow-1:
+    inset 0 1px 2px oklch(1 0 0 / 0.10),
+    0 1px 3px oklch(0 0 0 / 0.30),
+    0 2px 6px oklch(0 0 0 / 0.15);
+  --shadow-2:
+    inset 0 1px 2px oklch(1 0 0 / 0.12),
+    0 4px 12px oklch(0 0 0 / 0.35),
+    0 2px 4px  oklch(0 0 0 / 0.20);
+  --shadow-3:
+    inset 0 1px 3px oklch(1 0 0 / 0.14),
+    0 8px 24px oklch(0 0 0 / 0.40),
+    0 4px 8px  oklch(0 0 0 / 0.25);
+
+  /* ── Accent glow ── */
+  --glow-primary:  0 0 16px oklch(0.52 0.07 230 / 0.45);
+  --glow-accent:   0 0 12px oklch(0.47 0.07 210 / 0.40);
+
+  /* ── Text ── */
+  --text-accent:  var(--color-secondary);
+
+  /* ── Font variables (required by tailwind.config.js) ── */
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* ── Tailwind token aliases (required by tailwind.config.js) ── */
+  --surface-canvas:   var(--bg-bottom);
+  --surface-sidebar:  var(--bg-mid);
+  --surface-elevated: var(--bg-overlay);
+  --accent-purple:    var(--color-primary);
+  --accent-dim:       oklch(0.52 0.07 230 / 0.35);
+  --accent-wash:      oklch(0.52 0.07 230 / 0.08);
+  --accent-border:    oklch(0.52 0.07 230 / 0.25);
+  --accent-glow:      var(--glow-primary);
+
+  /* ── Data visualization colors (for D3 competitor nodes) ── */
+  --data-teal:     oklch(0.72 0.12 185);
+  --data-amber:    oklch(0.78 0.14 70);
+  --data-red:      oklch(0.65 0.18 20);
+  --data-blue:     oklch(0.68 0.12 245);
+  --data-lavender: oklch(0.70 0.12 300);
+  --data-green:    oklch(0.72 0.13 145);
+
+  /* Legacy depth aliases */
+  --abyss:    var(--bg-bottom);
+  --trench:   oklch(0.12 0.02 210);
+  --deep:     var(--bg-mid);
+  --mid:      oklch(0.20 0.03 220);
+  --reef:     var(--color-primary);
+
+  /* Legacy bioluminescence aliases */
+  --glow-blue:   var(--color-primary);
+  --glow-cyan:   var(--color-secondary);
+  --glow-bright: #c8e3f5;
+  --glow-pale:   var(--color-text);
 
   /* Blue Ocean (unclaimed) */
   --ocean-unclaimed: #00f5d4;
@@ -38,47 +95,56 @@
   --score-mid: #ffb347;
   --score-low: #ef233c;
 
-  /* Text */
-  --text-primary: #e0f4ff;
-  --text-secondary: #90c8e8;
-  --text-muted: #4a8ab5;
-  --text-dim: #2a5a7a;
+  /* Text (legacy) */
+  --text-primary:   var(--color-text);
+  --text-secondary: oklch(0.70 0.02 210);
+  --text-muted:     oklch(0.55 0.03 215);
+  --text-dim:       oklch(0.40 0.03 215);
 
-  /* Surfaces */
-  --surface-glass: rgba(0, 29, 61, 0.7);
-  --surface-glass-light: rgba(0, 53, 102, 0.5);
-  --border-glow: rgba(0, 180, 216, 0.25);
-  --border-subtle: rgba(0, 180, 216, 0.1);
+  /* Surfaces (legacy) */
+  --surface-glass:       oklch(0.14 0.02 210 / 0.80);
+  --surface-glass-light: oklch(0.18 0.02 210 / 0.60);
+  --border-glow:         oklch(0.52 0.07 230 / 0.25);
+  --border-subtle:       oklch(0.52 0.07 230 / 0.10);
 }
 
 /* ---- Base ---- */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Global elevation transitions */
+* {
+  transition-property: box-shadow, border-color, background-color, transform;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--abyss);
+  font-family: var(--font-body);
+  background: var(--bg-bottom);
   color: var(--text-primary);
   overflow-x: hidden;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--trench); }
-::-webkit-scrollbar-thumb { background: var(--mid); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--glow-blue); }
+::-webkit-scrollbar-track { background: var(--bg-bottom); }
+::-webkit-scrollbar-thumb { background: var(--color-primary); border-radius: 2px; opacity: 0.5; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-secondary); }
 
 /* ============================================================
    OCEAN BACKGROUNDS
    ============================================================ */
 
 .ocean-bg {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 70, 140, 0.5) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 40% at 90% 110%, rgba(0, 40, 80, 0.6) 0%, transparent 60%),
-    linear-gradient(180deg, #000e1f 0%, #000814 35%, #000508 100%);
+  background-color: var(--bg-bottom);
+  background-image: radial-gradient(
+    ellipse 120% 60% at 10% -10%,
+    oklch(0.47 0.07 210 / 0.06) 0%,
+    transparent 70%
+  );
 }
 
 /* ============================================================
@@ -89,8 +155,9 @@ html, body, #root {
   background: var(--surface-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-glow);
+  border: 1px solid oklch(0.52 0.07 230 / 0.18);
   border-radius: 14px;
+  box-shadow: var(--shadow-2);
 }
 
 .glass-light {
@@ -99,6 +166,7 @@ html, body, #root {
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
+  box-shadow: var(--shadow-1);
 }
 
 /* ============================================================
@@ -106,11 +174,11 @@ html, body, #root {
    ============================================================ */
 
 .glow-blue {
-  box-shadow: 0 0 20px rgba(0, 180, 216, 0.25), 0 0 60px rgba(0, 180, 216, 0.08);
+  box-shadow: var(--shadow-2), var(--glow-primary);
 }
 
 .glow-cyan {
-  box-shadow: 0 0 20px rgba(72, 202, 228, 0.35), 0 0 40px rgba(72, 202, 228, 0.12);
+  box-shadow: var(--shadow-2), var(--glow-accent);
 }
 
 .glow-gold {
@@ -235,25 +303,25 @@ html, body, #root {
    ============================================================ */
 
 .btn-ocean {
-  background: linear-gradient(135deg, var(--glow-blue), var(--mid));
-  color: white;
-  border: 1px solid rgba(0, 180, 216, 0.4);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  color: var(--color-text);
+  border: none;
   border-radius: 8px;
   padding: 10px 24px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: box-shadow 0.2s, transform 0.15s;
   font-size: 14px;
+  box-shadow: var(--shadow-2), var(--glow-primary);
 }
 
 .btn-ocean:hover {
-  box-shadow: 0 0 30px rgba(0, 180, 216, 0.35);
+  box-shadow: var(--shadow-3), var(--glow-primary);
   transform: translateY(-1px);
-  filter: brightness(1.1);
 }
 
-.btn-ocean:active { transform: translateY(0); }
-.btn-ocean:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; }
+.btn-ocean:active { transform: translateY(0); box-shadow: var(--shadow-1); }
+.btn-ocean:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .btn-unclaimed {
   background: rgba(0, 245, 212, 0.1);
@@ -293,22 +361,23 @@ html, body, #root {
    ============================================================ */
 
 .ocean-input {
-  background: rgba(0, 17, 34, 0.9);
-  border: 1px solid var(--border-glow);
+  background: var(--bg-top);
+  border: 1px solid oklch(0.52 0.07 230 / 0.20);
   border-radius: 8px;
   color: var(--text-primary);
   padding: 10px 14px;
   width: 100%;
   font-size: 14px;
-  transition: all 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
+  box-shadow: var(--shadow-1);
 }
 
 .ocean-input::placeholder { color: var(--text-muted); }
 
 .ocean-input:focus {
-  border-color: var(--glow-blue);
-  box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.12);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-1), var(--glow-primary);
 }
 
 /* ============================================================
@@ -324,7 +393,7 @@ html, body, #root {
 
 .ocean-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--glow-blue), var(--ocean-unclaimed));
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
   border-radius: 99px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }

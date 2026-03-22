@@ -58,10 +58,13 @@ export default {
         'full': '9999px',
       },
       boxShadow: {
-        card: '0 1px 3px rgba(0,0,0,0.5)',
-        'accent-glow': '0 4px 16px rgba(139,111,255,0.35)',
-        'focus-ring': '0 0 0 3px rgba(139,111,255,0.12)',
-        glow: '0 0 0 1px rgba(139,111,255,0.45), 0 0 24px rgba(139,111,255,0.12)',
+        1: 'var(--shadow-1)',
+        2: 'var(--shadow-2)',
+        3: 'var(--shadow-3)',
+        card: 'var(--shadow-1)',
+        'accent-glow': 'var(--glow-primary)',
+        'focus-ring': 'var(--glow-primary)',
+        glow: 'var(--glow-primary)',
       },
       keyframes: {
         'fade-up': {

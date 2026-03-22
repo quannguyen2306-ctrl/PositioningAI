@@ -36,7 +36,8 @@ export default function ContentLab({ isOpen, onToggle, prefillText }: Props) {
     <div
       className="glass"
       style={{
-        border: '1px solid rgba(0,180,216,0.25)',
+        border: '1px solid oklch(0.52 0.07 230 / 0.18)',
+        boxShadow: 'var(--shadow-2)',
         transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
         overflow: 'hidden',
       }}
@@ -81,8 +82,8 @@ export default function ContentLab({ isOpen, onToggle, prefillText }: Props) {
           {!backendSessionId && (
             <div style={{
               padding: '10px 14px',
-              background: 'rgba(255,179,71,0.08)',
-              border: '1px solid rgba(255,179,71,0.25)',
+              background: 'oklch(0.75 0.14 80 / 0.08)',
+              border: '1px solid oklch(0.75 0.14 80 / 0.25)',
               borderRadius: 8,
               fontSize: 12,
               color: 'var(--score-mid)',
@@ -128,8 +129,8 @@ export default function ContentLab({ isOpen, onToggle, prefillText }: Props) {
           {contentLabError && (
             <div style={{
               padding: '10px 14px',
-              background: 'rgba(239,35,60,0.08)',
-              border: '1px solid rgba(239,35,60,0.25)',
+              background: 'oklch(0.55 0.22 25 / 0.08)',
+              border: '1px solid oklch(0.55 0.22 25 / 0.25)',
               borderRadius: 8,
               fontSize: 12,
               color: 'var(--score-low)',
@@ -154,7 +155,7 @@ export default function ContentLab({ isOpen, onToggle, prefillText }: Props) {
                 <MetricCell
                   label="Mention Rate"
                   value={`${((contentLabResult.eval.mention_rate ?? 0) * 100).toFixed(0)}%`}
-                  color="var(--glow-blue)"
+                  color="var(--color-primary)"
                 />
                 <MetricCell
                   label="Blue Oceans"
@@ -166,8 +167,8 @@ export default function ContentLab({ isOpen, onToggle, prefillText }: Props) {
               {contentLabResult.archetype && (
                 <div style={{
                   padding: '10px 14px',
-                  background: 'rgba(0,245,212,0.05)',
-                  border: '1px solid rgba(0,245,212,0.2)',
+                  background: 'oklch(0.75 0.15 180 / 0.05)',
+                  border: '1px solid var(--ocean-unclaimed-dim)',
                   borderRadius: 8,
                 }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>
@@ -207,10 +208,11 @@ function MetricCell({
   return (
     <div style={{
       padding: '10px',
-      background: highlight ? 'rgba(0,245,212,0.05)' : 'rgba(0,29,61,0.5)',
-      border: `1px solid ${highlight ? 'rgba(0,245,212,0.2)' : 'rgba(0,180,216,0.1)'}`,
+      background: highlight ? 'oklch(0.47 0.07 210 / 0.07)' : 'var(--bg-mid)',
+      border: `1px solid ${highlight ? 'oklch(0.47 0.07 210 / 0.25)' : 'var(--border-subtle)'}`,
       borderRadius: 8,
       textAlign: 'center',
+      boxShadow: highlight ? 'var(--shadow-1)' : 'none',
     }}>
       <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 4 }}>
         {label}

@@ -67,20 +67,9 @@ export default function HomePage() {
   }
 
   return (
-    <div
-      className="ocean-bg"
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="ocean-bg min-h-screen flex items-center justify-center px-6 py-6 relative overflow-hidden">
       {/* Animated bubbles */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
         {BUBBLES.map(b => (
           <div
             key={b.id}
@@ -104,22 +93,22 @@ export default function HomePage() {
         left: '25%',
         width: '50%',
         height: '55%',
-        background: 'linear-gradient(180deg, rgba(0,90,180,0.07) 0%, transparent 100%)',
+        background: 'linear-gradient(180deg, oklch(0.47 0.07 210 / 0.07) 0%, transparent 100%)',
         pointerEvents: 'none',
         zIndex: 0,
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 560 }}>
+      <div className="relative w-full max-w-[560px]" style={{ zIndex: 1 }}>
         {/* Hero */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div className="animate-float" style={{ fontSize: 56, marginBottom: 14, display: 'inline-block' }}>
+        <div className="text-center mb-9">
+          <div className="animate-float inline-block text-[56px] mb-3">
             🌊
           </div>
           <h1 style={{
             fontSize: 44,
             fontWeight: 700,
             margin: '0 0 8px',
-            background: 'linear-gradient(135deg, #e0f4ff 0%, #00b4d8 50%, #00f5d4 100%)',
+            background: 'linear-gradient(135deg, var(--color-text) 0%, var(--color-secondary) 50%, var(--color-primary) 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -127,19 +116,19 @@ export default function HomePage() {
           }}>
             Blue Ocean
           </h1>
-          <p style={{ color: 'var(--text-secondary)', margin: '0 0 4px', fontSize: 16 }}>
+          <p className="text-[16px] mb-1" style={{ color: 'var(--text-secondary)' }}>
             AI Visibility Intelligence
           </p>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 13 }}>
+          <p className="text-[13px] m-0" style={{ color: 'var(--text-muted)' }}>
             Discover your territory in the AI ocean — and claim the unclaimed
           </p>
         </div>
 
         {/* Form */}
-        <div className="glass glow-blue" style={{ padding: '28px' }}>
+        <div className="glass glow-blue p-7">
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.1em' }}>
+            <div className="mb-4">
+              <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
                 YOUR WEBSITE
               </label>
               <input
@@ -152,12 +141,12 @@ export default function HomePage() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
-                <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.1em' }}>
+                <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   OPENAI KEY
                 </label>
-                <div style={{ position: 'relative' }}>
+                <div className="relative">
                   <input
                     className="ocean-input"
                     type={showOpenai ? 'text' : 'password'}
@@ -170,7 +159,8 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => setShowOpenai(v => !v)}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12 }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer text-[12px]"
+                    style={{ color: 'var(--text-muted)' }}
                   >
                     {showOpenai ? '👁' : '○'}
                   </button>
@@ -178,10 +168,10 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.1em' }}>
+                <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   SERPER KEY
                 </label>
-                <div style={{ position: 'relative' }}>
+                <div className="relative">
                   <input
                     className="ocean-input"
                     type={showSerper ? 'text' : 'password'}
@@ -194,7 +184,8 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => setShowSerper(v => !v)}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12 }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer text-[12px]"
+                    style={{ color: 'var(--text-muted)' }}
                   >
                     {showSerper ? '👁' : '○'}
                   </button>
@@ -205,18 +196,12 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setAdvanced(v => !v)}
+              className="w-full flex justify-between items-center py-2 bg-transparent border-none cursor-pointer text-[11px] tracking-wide"
               style={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '8px 0',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
                 color: 'var(--text-muted)',
-                fontSize: 11,
-                letterSpacing: '0.05em',
                 marginBottom: advanced ? 12 : 20,
+                borderTop: '1px solid oklch(0.52 0.07 230 / 0.12)',
+                paddingTop: 8,
               }}
             >
               <span>ADVANCED SETTINGS</span>
@@ -224,23 +209,23 @@ export default function HomePage() {
             </button>
 
             {advanced && (
-              <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="mb-5 flex flex-col gap-4">
                 <div>
-                  <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.08em' }}>
+                  <label className="flex justify-between text-[10px] tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
                     <span>COMPETITORS TO SCAN</span>
-                    <span style={{ color: 'var(--glow-blue)' }}>{nCompetitors}</span>
+                    <span style={{ color: 'var(--color-primary)' }}>{nCompetitors}</span>
                   </label>
-                  <input type="range" min={5} max={20} value={nCompetitors} onChange={e => setNCompetitors(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--glow-blue)' }} />
+                  <input type="range" min={5} max={20} value={nCompetitors} onChange={e => setNCompetitors(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.08em' }}>
+                  <label className="flex justify-between text-[10px] tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
                     <span>TEST QUESTIONS</span>
-                    <span style={{ color: 'var(--glow-blue)' }}>{nQuestions}</span>
+                    <span style={{ color: 'var(--color-primary)' }}>{nQuestions}</span>
                   </label>
-                  <input type="range" min={5} max={15} value={nQuestions} onChange={e => setNQuestions(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--glow-blue)' }} />
+                  <input type="range" min={5} max={15} value={nQuestions} onChange={e => setNQuestions(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.08em' }}>
+                  <label className="block text-[10px] tracking-wide mb-1.5" style={{ color: 'var(--text-muted)' }}>
                     CUSTOM QUESTIONS (optional, one per line)
                   </label>
                   <textarea
@@ -256,16 +241,16 @@ export default function HomePage() {
             )}
 
             {error && (
-              <div style={{ padding: '10px 14px', background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', borderRadius: 8, fontSize: 12, color: 'var(--score-low)', marginBottom: 16 }}>
+              <div className="p-3 rounded-lg text-[12px] mb-4" style={{ background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', color: 'var(--score-low)' }}>
                 {error}
               </div>
             )}
 
             <button
               type="submit"
-              className="btn-ocean"
+              className="btn-ocean w-full"
               disabled={!canSubmit}
-              style={{ width: '100%', fontSize: 15, padding: '13px 24px' }}
+              style={{ fontSize: 15, padding: '13px 24px' }}
             >
               {loading ? '🌊 Diving in…' : 'Dive into the Ocean →'}
             </button>
@@ -274,23 +259,23 @@ export default function HomePage() {
 
         {/* Recent sessions */}
         {sessionHistory.length > 0 && (
-          <div style={{ marginTop: 20 }}>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.1em' }}>RECENT DIVES</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="mt-5">
+            <div className="text-[10px] tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>RECENT DIVES</div>
+            <div className="flex flex-col gap-1.5">
               {sessionHistory.slice(0, 3).map(s => (
                 <button
                   key={s.id}
                   onClick={() => { restoreSession(s); navigate(`/results/${s.id}`) }}
-                  className="glass-light"
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', textAlign: 'left' }}
+                  className="glass-light w-full flex items-center justify-between px-3.5 py-2.5 text-left cursor-pointer"
+                  style={{ border: 'none', color: 'var(--text-secondary)' }}
                 >
                   <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>
+                    <div className="text-[12px]" style={{ color: 'var(--text-primary)' }}>
                       {(() => { try { return new URL(s.businessUrl).hostname } catch { return s.businessUrl } })()}
                     </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{new Date(Number(s.id)).toLocaleDateString()}</div>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{new Date(Number(s.id)).toLocaleDateString()}</div>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: scoreColor(s.overallScore), fontFamily: 'monospace' }}>
+                  <div className="text-lg font-bold" style={{ color: scoreColor(s.overallScore), fontFamily: 'monospace' }}>
                     {s.overallScore?.toFixed(1)}
                   </div>
                 </button>
@@ -299,7 +284,7 @@ export default function HomePage() {
           </div>
         )}
 
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--text-dim)' }}>
+        <div className="text-center mt-5 text-[11px]" style={{ color: 'var(--text-dim)' }}>
           API keys stored locally · never sent to our servers
         </div>
       </div>

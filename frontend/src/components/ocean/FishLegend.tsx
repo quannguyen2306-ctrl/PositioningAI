@@ -70,7 +70,7 @@ export default function FishLegend({
               gap: 10,
               cursor: 'pointer',
               border: isHovered ? `1px solid ${color}` : '1px solid transparent',
-              background: isHovered ? `${color.replace('0.85', '0.08')}` : 'rgba(0,29,61,0.4)',
+              background: isHovered ? color.replace(/[\d.]+\)$/, '0.08)') : 'var(--bg-mid)',
               transition: 'all 0.2s',
               borderRadius: 8,
               opacity: anyHovered && !isHovered ? 0.45 : 1,

@@ -107,12 +107,13 @@ export default function RecommendationLab({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 14px',
-          background: enabled ? 'rgba(255,100,220,0.06)' : 'rgba(0,29,61,0.4)',
-          border: `1px solid ${enabled ? 'rgba(255,100,220,0.35)' : 'rgba(0,180,216,0.15)'}`,
+          background: enabled ? 'oklch(0.47 0.07 210 / 0.10)' : 'var(--bg-mid)',
+          border: `1px solid ${enabled ? 'oklch(0.47 0.07 210 / 0.35)' : 'var(--border-subtle)'}`,
           borderRadius: 10,
           cursor: 'pointer',
           color: 'var(--text-primary)',
           transition: 'all 0.2s',
+          boxShadow: enabled ? 'var(--shadow-1)' : 'none',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -126,11 +127,11 @@ export default function RecommendationLab({
         </div>
         <div style={{
           fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-          color: enabled ? 'rgba(255,100,220,0.9)' : 'var(--text-muted)',
+          color: enabled ? 'var(--color-accent)' : 'var(--text-muted)',
           padding: '3px 8px',
-          border: `1px solid ${enabled ? 'rgba(255,100,220,0.4)' : 'rgba(0,180,216,0.2)'}`,
+          border: `1px solid ${enabled ? 'oklch(0.47 0.07 210 / 0.40)' : 'var(--border-subtle)'}`,
           borderRadius: 99,
-          background: enabled ? 'rgba(255,100,220,0.1)' : 'transparent',
+          background: enabled ? 'oklch(0.47 0.07 210 / 0.12)' : 'transparent',
         }}>
           {enabled ? 'ON' : 'OFF'}
         </div>
@@ -146,7 +147,7 @@ export default function RecommendationLab({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 12 }}>
 
           {!backendSessionId && (
-            <div style={{ padding: '8px 12px', background: 'rgba(255,179,71,0.08)', border: '1px solid rgba(255,179,71,0.25)', borderRadius: 8, fontSize: 11, color: 'var(--score-mid)' }}>
+            <div style={{ padding: '8px 12px', background: 'oklch(0.75 0.14 80 / 0.08)', border: '1px solid oklch(0.75 0.14 80 / 0.25)', borderRadius: 8, fontSize: 11, color: 'var(--score-mid)' }}>
               Run an analysis first to enable recommendations.
             </div>
           )}
@@ -160,9 +161,9 @@ export default function RecommendationLab({
                 style={{
                   flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 600,
                   borderRadius: 6, cursor: 'pointer', transition: 'all 0.2s',
-                  background: mode === m ? 'rgba(255,100,220,0.12)' : 'rgba(0,29,61,0.5)',
-                  border: mode === m ? '1px solid rgba(255,100,220,0.4)' : '1px solid rgba(0,180,216,0.12)',
-                  color: mode === m ? 'rgba(255,100,220,0.9)' : 'var(--text-muted)',
+                  background: mode === m ? 'oklch(0.52 0.07 230 / 0.12)' : 'var(--bg-mid)',
+                  border: mode === m ? '1px solid oklch(0.52 0.07 230 / 0.40)' : '1px solid var(--border-subtle)',
+                  color: mode === m ? 'var(--color-secondary)' : 'var(--text-muted)',
                 }}
               >
                 {m === 'zones' ? '🌊 Zones' : '🎯 Pick Point'}
@@ -193,14 +194,14 @@ export default function RecommendationLab({
                     disabled={!canGenerate}
                     style={{
                       padding: '10px 12px', textAlign: 'left', cursor: 'pointer',
-                      background: 'rgba(0,245,212,0.04)',
-                      border: '1px solid rgba(0,245,212,0.25)',
+                      background: 'oklch(0.47 0.07 210 / 0.05)',
+                      border: '1px solid oklch(0.47 0.07 210 / 0.28)',
                       borderRadius: 8, transition: 'all 0.2s',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,212,0.09)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,245,212,0.04)')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'oklch(0.47 0.07 210 / 0.12)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'oklch(0.47 0.07 210 / 0.05)')}
                   >
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#00f5d4', marginBottom: 3 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ocean-unclaimed)', marginBottom: 3 }}>
                       🌊 Unclaimed Zone {i + 1}
                     </div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -225,9 +226,9 @@ export default function RecommendationLab({
                   disabled={!canGenerate}
                   style={{
                     flex: 1, padding: '10px 14px', cursor: 'pointer', borderRadius: 8,
-                    background: pickPointMode ? 'rgba(255,100,220,0.12)' : 'rgba(0,29,61,0.5)',
-                    border: pickPointMode ? '1px solid rgba(255,100,220,0.5)' : '1px solid rgba(0,180,216,0.2)',
-                    color: pickPointMode ? 'rgba(255,100,220,0.9)' : 'var(--text-muted)',
+                    background: pickPointMode ? 'oklch(0.52 0.07 230 / 0.15)' : 'var(--bg-mid)',
+                    border: pickPointMode ? '1px solid oklch(0.52 0.07 230 / 0.50)' : '1px solid var(--border-subtle)',
+                    color: pickPointMode ? 'var(--color-secondary)' : 'var(--text-muted)',
                     fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
                   }}
                 >
@@ -240,8 +241,8 @@ export default function RecommendationLab({
                     title="Remove pin from map"
                     style={{
                       padding: '10px 12px', cursor: 'pointer', borderRadius: 8,
-                      background: 'rgba(239,35,60,0.08)',
-                      border: '1px solid rgba(239,35,60,0.3)',
+                      background: 'oklch(0.55 0.22 25 / 0.08)',
+                      border: '1px solid oklch(0.55 0.22 25 / 0.3)',
                       color: 'var(--score-low)',
                       fontSize: 12, fontWeight: 600,
                     }}
@@ -257,7 +258,7 @@ export default function RecommendationLab({
                 </div>
               )}
               {recommendationTarget && !pickPointMode && (
-                <div style={{ fontSize: 10, color: 'rgba(255,100,220,0.7)', letterSpacing: '0.05em' }}>
+                <div style={{ fontSize: 10, color: 'var(--color-accent)', letterSpacing: '0.05em' }}>
                   🎯 Pin active at ({recommendationTarget.x.toFixed(2)}, {recommendationTarget.y.toFixed(2)})
                 </div>
               )}
@@ -268,13 +269,13 @@ export default function RecommendationLab({
           {loading && (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
               <div style={{ fontSize: 22, marginBottom: 8 }} className="animate-float">🧭</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,100,220,0.8)' }}>Charting your course…</div>
+              <div style={{ fontSize: 12, color: 'var(--color-secondary)' }}>Charting your course…</div>
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <div style={{ padding: '8px 12px', background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', borderRadius: 8, fontSize: 11, color: 'var(--score-low)' }}>
+            <div style={{ padding: '8px 12px', background: 'oklch(0.55 0.22 25 / 0.08)', border: '1px solid oklch(0.55 0.22 25 / 0.25)', borderRadius: 8, fontSize: 11, color: 'var(--score-low)' }}>
               {error}
             </div>
           )}
@@ -282,7 +283,7 @@ export default function RecommendationLab({
           {/* Results */}
           {result && !loading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 10, color: 'rgba(255,100,220,0.8)', letterSpacing: '0.08em' }}>
+              <div style={{ fontSize: 10, color: 'var(--color-secondary)', letterSpacing: '0.08em' }}>
                 RECOMMENDATIONS FOR: {targetLabel.toUpperCase()}
               </div>
 
@@ -290,13 +291,13 @@ export default function RecommendationLab({
                 {result.recommendations.map((rec, i) => (
                   <div key={i} style={{
                     padding: '8px 10px',
-                    background: 'rgba(255,100,220,0.04)',
-                    border: '1px solid rgba(255,100,220,0.15)',
+                    background: 'oklch(0.52 0.07 230 / 0.05)',
+                    border: '1px solid oklch(0.52 0.07 230 / 0.18)',
                     borderRadius: 7,
                     fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5,
                     display: 'flex', gap: 8,
                   }}>
-                    <span style={{ color: 'rgba(255,100,220,0.7)', fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
+                    <span style={{ color: 'var(--color-primary)', fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
                     {rec}
                   </div>
                 ))}
@@ -309,8 +310,8 @@ export default function RecommendationLab({
                   </div>
                   <div style={{
                     padding: '10px 12px',
-                    background: 'rgba(0,8,20,0.6)',
-                    border: '1px solid rgba(255,100,220,0.2)',
+                    background: 'var(--bg-bottom)',
+                    border: '1px solid oklch(0.52 0.07 230 / 0.25)',
                     borderRadius: 8,
                     fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6,
                     maxHeight: 180, overflowY: 'auto',
@@ -321,10 +322,11 @@ export default function RecommendationLab({
                     onClick={sendToContentLab}
                     style={{
                       padding: '9px 14px', cursor: 'pointer', borderRadius: 8,
-                      background: 'rgba(255,100,220,0.1)',
-                      border: '1px solid rgba(255,100,220,0.4)',
-                      color: 'rgba(255,100,220,0.9)',
+                      background: 'oklch(0.52 0.07 230 / 0.10)',
+                      border: '1px solid oklch(0.52 0.07 230 / 0.40)',
+                      color: 'var(--color-secondary)',
                       fontSize: 12, fontWeight: 700,
+                      boxShadow: 'var(--shadow-1)',
                     }}
                   >
                     🧪 Send Draft to Content Lab

@@ -147,7 +147,8 @@ export default function ResultsPage() {
         justifyContent: 'space-between',
         padding: '12px 20px',
         borderBottom: '1px solid var(--border-subtle)',
-        background: 'rgba(0,8,20,0.8)',
+        background: 'var(--bg-mid)',
+        boxShadow: '0 2px 8px oklch(0 0 0 / 0.25)',
         backdropFilter: 'blur(12px)',
         zIndex: 10,
       }}>
@@ -184,7 +185,7 @@ export default function ResultsPage() {
 
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>COVERAGE</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'monospace', color: 'var(--glow-cyan)' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'monospace', color: 'var(--color-secondary)' }}>
               {((evalResults?.mention_rate ?? 0) * 100).toFixed(0)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>%</span>
             </div>
           </div>
@@ -207,9 +208,10 @@ export default function ResultsPage() {
               style={{
                 fontSize: 11,
                 padding: '6px 12px',
-                background: activeTab === t ? 'rgba(0,180,216,0.12)' : 'transparent',
-                color: activeTab === t ? 'var(--glow-blue)' : 'var(--text-muted)',
-                border: activeTab === t ? '1px solid rgba(0,180,216,0.3)' : '1px solid transparent',
+                background: activeTab === t ? 'var(--bg-top)' : 'transparent',
+                color: activeTab === t ? 'var(--color-secondary)' : 'var(--text-muted)',
+                border: activeTab === t ? '1px solid oklch(0.52 0.07 230 / 0.25)' : '1px solid transparent',
+                boxShadow: activeTab === t ? 'var(--shadow-1)' : 'none',
               }}
             >
               {t === 'map' ? '🗺 Map' : t === 'eval' ? '📊 Eval' : '💡 Recs'}
@@ -224,6 +226,7 @@ export default function ResultsPage() {
         padding: '16px 12px',
         overflowY: 'auto',
         borderRight: '1px solid var(--border-subtle)',
+        background: 'var(--bg-mid)',
         display: 'flex',
         flexDirection: 'column',
         gap: 16,
@@ -260,7 +263,7 @@ export default function ResultsPage() {
             </div>
             {interps.slice(0, 2).map((interp, i) => (
               <div key={i} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--glow-blue)', fontWeight: 600, marginBottom: 3 }}>
+                <div style={{ fontSize: 11, color: 'var(--color-primary)', fontWeight: 600, marginBottom: 3 }}>
                   {interp.dimension_name}
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -371,7 +374,7 @@ export default function ResultsPage() {
                     <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border-subtle)' }}>
                       <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>AI Answer:</div>
-                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0, background: 'rgba(0,29,61,0.4)', padding: '10px 12px', borderRadius: 8 }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0, background: 'var(--bg-mid)', padding: '10px 12px', borderRadius: 8 }}>
                           {r.answer}
                         </p>
                         {r.why_low_visibility && (
@@ -421,7 +424,7 @@ export default function ResultsPage() {
                     </div>
                   </div>
                   <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', lineHeight: 1.6 }}>{fix.problem}</p>
-                  <p style={{ fontSize: 12, color: 'var(--glow-bright)', margin: 0, lineHeight: 1.6 }}>{fix.action}</p>
+                  <p style={{ fontSize: 12, color: 'var(--color-secondary)', margin: 0, lineHeight: 1.6 }}>{fix.action}</p>
                 </div>
               ))}
 
@@ -452,7 +455,7 @@ export default function ResultsPage() {
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 12 }}>TOPICS TO COVER</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {results.recs.topics_to_cover.map((t, i) => (
-                      <span key={i} style={{ fontSize: 12, padding: '4px 12px', background: 'rgba(0,180,216,0.08)', border: '1px solid rgba(0,180,216,0.2)', borderRadius: 99, color: 'var(--glow-bright)' }}>
+                      <span key={i} style={{ fontSize: 12, padding: '4px 12px', background: 'oklch(0.52 0.07 230 / 0.08)', border: '1px solid oklch(0.52 0.07 230 / 0.18)', borderRadius: 99, color: 'var(--color-secondary)' }}>
                         {t}
                       </span>
                     ))}
@@ -477,7 +480,7 @@ export default function ResultsPage() {
         <div style={{
           display: 'flex',
           borderBottom: '1px solid var(--border-subtle)',
-          background: 'rgba(0,8,20,0.6)',
+          background: 'var(--bg-mid)',
           flexShrink: 0,
         }}>
           {([['reclab', '🧭 Rec Lab'], ['contentlab', '🧪 Content Lab']] as const).map(([tab, label]) => (
@@ -486,10 +489,10 @@ export default function ResultsPage() {
               onClick={() => setRightTab(tab)}
               style={{
                 flex: 1, padding: '10px 6px', fontSize: 11, fontWeight: 600,
-                background: rightTab === tab ? 'rgba(0,180,216,0.08)' : 'transparent',
+                background: rightTab === tab ? 'var(--bg-top)' : 'transparent',
                 border: 'none',
-                borderBottom: rightTab === tab ? '2px solid var(--glow-blue)' : '2px solid transparent',
-                color: rightTab === tab ? 'var(--glow-blue)' : 'var(--text-muted)',
+                borderBottom: rightTab === tab ? `2px solid var(--color-primary)` : '2px solid transparent',
+                color: rightTab === tab ? 'var(--color-secondary)' : 'var(--text-muted)',
                 cursor: 'pointer', transition: 'all 0.15s',
               }}
             >
@@ -585,7 +588,7 @@ function ScoreBar({ label, value, total, color }: { label: string; value: number
         <span style={{ color: 'var(--text-muted)' }}>{label}</span>
         <span style={{ color, fontWeight: 600 }}>{value}</span>
       </div>
-      <div style={{ height: 3, background: 'rgba(0,180,216,0.1)', borderRadius: 99, overflow: 'hidden' }}>
+      <div style={{ height: 3, background: 'var(--bg-top)', borderRadius: 99, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99, transition: 'width 0.8s ease-out' }} />
       </div>
     </div>

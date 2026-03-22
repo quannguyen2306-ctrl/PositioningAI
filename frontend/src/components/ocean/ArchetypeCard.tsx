@@ -40,7 +40,7 @@ export default function ArchetypeCard({ archetype }: Props) {
       className="glass animate-fade-up"
       style={{
         border: `1px solid ${colors.border}`,
-        boxShadow: `0 0 30px ${colors.glow}`,
+        boxShadow: `var(--shadow-2), 0 0 30px ${colors.glow}`,
         background: `${colors.bg}`,
         padding: '16px',
       }}
@@ -65,7 +65,7 @@ export default function ArchetypeCard({ archetype }: Props) {
       </p>
 
       <div style={{
-        background: 'rgba(0,180,216,0.06)',
+        background: 'oklch(0.52 0.07 230 / 0.06)',
         border: '1px solid rgba(0,180,216,0.15)',
         borderRadius: 8,
         padding: '10px 12px',
@@ -73,7 +73,7 @@ export default function ArchetypeCard({ archetype }: Props) {
         <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 4 }}>
           STRATEGY
         </div>
-        <p style={{ fontSize: 12, color: 'var(--glow-bright)', lineHeight: 1.6, margin: 0 }}>
+        <p style={{ fontSize: 12, color: 'var(--color-secondary)', lineHeight: 1.6, margin: 0 }}>
           {archetype.strategy}
         </p>
       </div>
