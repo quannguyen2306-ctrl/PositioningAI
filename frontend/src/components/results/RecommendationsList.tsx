@@ -1,4 +1,10 @@
+import { useState } from 'react'
 import type { Recommendations, Fix, ContentPiece } from '../../api/types'
+import { LearnMoreModal } from '../modals/LearnMoreModal'
+
+type ModalContent =
+  | { kind: 'fix'; data: Fix }
+  | { kind: 'content'; data: ContentPiece }
 
 interface RecommendationsListProps {
   recs: Recommendations
@@ -11,14 +17,14 @@ function getPriorityLabel(impact: Fix['impact']): string {
 }
 
 function getPriorityClass(impact: Fix['impact']): string {
-  if (impact === 'high') return 'bg-score-low/15 text-score-low border border-score-low/30'
-  if (impact === 'medium') return 'bg-score-mid/15 text-score-mid border border-score-mid/30'
+  if (impact === 'high') return 'bg-raised text-text-secondary border border-subtle'
+  if (impact === 'medium') return 'bg-raised text-text-secondary border border-subtle'
   return 'bg-raised text-text-secondary border border-subtle'
 }
 
-function FixCard({ fix }: { fix: Fix }) {
+function FixCard({ fix, onLearnMore }: { fix: Fix; onLearnMore: (item: ModalContent) => void }) {
   return (
-    <div className="card p-5 flex flex-col gap-3 hover:border-border-hover transition-colors">
+    <div className="card p-5 flex flex-col gap-3 transition-colors">
       <span className={`px-2.5 py-1 rounded-full text-2xs font-display font-semibold uppercase tracking-wider w-fit ${getPriorityClass(fix.impact)}`}>
         {getPriorityLabel(fix.impact)}
       </span>
@@ -34,17 +40,17 @@ function FixCard({ fix }: { fix: Fix }) {
         <span className="text-2xs text-text-muted">
           Effort: <span className="text-text-secondary capitalize">{fix.effort}</span>
         </span>
-        <span className="text-accent text-xs font-display font-semibold cursor-pointer hover:underline">
+        <button onClick={() => onLearnMore({ kind: 'fix', data: fix })} className="text-accent text-xs font-display font-semibold hover:underline focus:outline-none">
           Learn more →
-        </span>
+        </button>
       </div>
     </div>
   )
 }
 
-function ContentCard({ piece }: { piece: ContentPiece }) {
+function ContentCard({ piece, onLearnMore }: { piece: ContentPiece; onLearnMore: (item: ModalContent) => void }) {
   return (
-    <div className="card p-5 flex flex-col gap-3 hover:border-border-hover transition-colors">
+    <div className="card p-5 flex flex-col gap-3 transition-colors">
       <span className="px-2.5 py-1 rounded-full text-2xs font-display font-semibold uppercase tracking-wider w-fit bg-accent/15 text-accent border border-accent/30">
         {piece.type}
       </span>
@@ -56,14 +62,16 @@ function ContentCard({ piece }: { piece: ContentPiece }) {
         <p className="text-2xs uppercase tracking-widest text-text-muted mb-1.5">Suggested Content</p>
         <p className="text-text-secondary text-sm leading-relaxed line-clamp-3">{piece.suggested_content}</p>
       </div>
-      <span className="text-accent text-xs font-display font-semibold cursor-pointer hover:underline w-fit">
+      <button onClick={() => onLearnMore({ kind: 'content', data: piece })} className="text-accent text-xs font-display font-semibold hover:underline focus:outline-none w-fit">
         Learn more →
-      </span>
+      </button>
     </div>
   )
 }
 
 export function RecommendationsList({ recs }: RecommendationsListProps) {
+  const [selectedItem, setSelectedItem] = useState<ModalContent | null>(null)
+
   return (
     <div className="space-y-6">
       {/* Executive Summary */}
@@ -83,7 +91,7 @@ export function RecommendationsList({ recs }: RecommendationsListProps) {
         <p className="input-label mb-3">Priority Fixes</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {recs.priority_fixes.map((fix, idx) => (
-            <FixCard key={idx} fix={fix} />
+            <FixCard key={idx} fix={fix} onLearnMore={setSelectedItem} />
           ))}
         </div>
       </div>
@@ -94,7 +102,7 @@ export function RecommendationsList({ recs }: RecommendationsListProps) {
           <p className="input-label mb-3">Content to Add</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {recs.content_to_add.map((piece, idx) => (
-              <ContentCard key={idx} piece={piece} />
+              <ContentCard key={idx} piece={piece} onLearnMore={setSelectedItem} />
             ))}
           </div>
         </div>
@@ -108,7 +116,7 @@ export function RecommendationsList({ recs }: RecommendationsListProps) {
             {recs.topics_to_cover.map((topic, idx) => (
               <span
                 key={idx}
-                className="px-3 py-1.5 bg-raised border border-subtle rounded-full text-xs text-text-secondary"
+                className="pill"
               >
                 {topic}
               </span>
@@ -116,6 +124,8 @@ export function RecommendationsList({ recs }: RecommendationsListProps) {
           </div>
         </div>
       )}
+
+      {selectedItem && <LearnMoreModal content={selectedItem} onClose={() => setSelectedItem(null)} />}
     </div>
   )
 }

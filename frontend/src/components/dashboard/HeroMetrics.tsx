@@ -9,7 +9,7 @@ function ScoreRing({ score }: ScoreRingProps) {
   const radius = 34
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (score / 10) * circumference
-  const color = score >= 7 ? '#22c55e' : score >= 4 ? '#f59e0b' : '#ef4444'
+  const color = score >= 7 ? 'var(--data-teal)' : score >= 4 ? 'var(--data-amber)' : 'var(--data-red)'
 
   useEffect(() => {
     const t = setTimeout(() => setAnimated(true), 60)
@@ -19,7 +19,7 @@ function ScoreRing({ score }: ScoreRingProps) {
   return (
     <div className="relative flex items-center justify-center" style={{ width: 86, height: 86 }}>
       <svg width="86" height="86" className="absolute -rotate-90">
-        <circle cx="43" cy="43" r={radius} fill="none" stroke="#2a2a32" strokeWidth="4" />
+        <circle cx="43" cy="43" r={radius} fill="none" stroke="var(--border-subtle)" strokeWidth="4" />
         <circle
           cx="43"
           cy="43"
@@ -80,7 +80,7 @@ export function HeroMetrics({ avgScore, mentionRate, highCount, competitorCount 
       <div className="card p-5 flex flex-col gap-3 animate-fade-up-4">
         <span className="text-2xs uppercase tracking-widest text-text-muted">Competitors</span>
         <span className="font-mono text-4xl font-light text-text-primary leading-none">{competitorCount}</span>
-        <span className="px-2 py-0.5 rounded text-xs font-body font-medium bg-raised text-text-secondary border border-subtle w-fit">
+        <span className="score-badge bg-raised text-text-secondary">
           {competitorCount} analysed
         </span>
       </div>

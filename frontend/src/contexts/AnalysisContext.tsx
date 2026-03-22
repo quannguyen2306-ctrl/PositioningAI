@@ -10,6 +10,10 @@ import type {
   ProgressEvent,
   CompDoc,
 } from '../api/types'
+import useSessionStorage from '../hooks/useSessionStorage'
+import type { SessionRecord } from '../hooks/useSessionStorage'
+
+export type { SessionRecord }
 
 interface AnalysisContextType {
   sessionId: string | null
@@ -17,8 +21,12 @@ interface AnalysisContextType {
   progress: ProgressEvent | null
   error: string | null
   analysisRequest: AnalysisRequest | null
+  sessionHistory: SessionRecord[]
   startAnalysis: (req: AnalysisRequest) => Promise<string>
   clearSession: () => void
+  restoreSession: (record: SessionRecord) => void
+  deleteSession: (id: string) => void
+  clearAllSessions: () => void
   setProgress: (progress: ProgressEvent) => void
   setResults: (results: AnalysisResult) => void
   setError: (error: string | null) => void
@@ -32,6 +40,8 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [progress, setProgress] = useState<ProgressEvent | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [analysisRequest, setAnalysisRequest] = useState<AnalysisRequest | null>(null)
+
+  const { sessions: sessionHistory, saveSession, deleteSession, clearAll: clearAllSessions } = useSessionStorage()
 
   // Holds an abort function so we can cancel a running stream
   const abortRef = useRef<(() => void) | null>(null)
@@ -96,7 +106,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       onComplete: () => {
         setProgress({ percent: 100, message: 'Analysis complete!', status: 'completed' })
         if (acc.biz && acc.eval && acc.coords && acc.recs) {
-          setResults({
+          const result: AnalysisResult = {
             biz: acc.biz,
             comp_docs: acc.comp_docs ?? [],
             eval: acc.eval,
@@ -104,7 +114,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
             pca_meta: acc.pca_meta ?? [],
             interps: acc.interps ?? [],
             recs: acc.recs,
-          })
+          }
+          setResults(result)
+          saveSession(sid, req.url, acc.eval.avg_visibility_score, result)
         }
       },
 
@@ -130,14 +142,30 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     setAnalysisRequest(null)
   }, [])
 
+  const restoreSession = useCallback((record: SessionRecord) => {
+    if (abortRef.current) {
+      abortRef.current()
+      abortRef.current = null
+    }
+    setSessionId(record.id)
+    setResults(record.results)
+    setProgress(null)
+    setError(null)
+    setAnalysisRequest(null)
+  }, [])
+
   const value: AnalysisContextType = {
     sessionId,
     results,
     progress,
     error,
     analysisRequest,
+    sessionHistory,
     startAnalysis: handleStartAnalysis,
     clearSession: handleClearSession,
+    restoreSession,
+    deleteSession,
+    clearAllSessions,
     setProgress,
     setResults,
     setError,

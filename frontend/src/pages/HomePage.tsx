@@ -55,7 +55,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface text-text-primary flex items-center justify-center px-5 py-12">
+    <div className="min-h-screen bg-base text-text-primary flex items-center justify-center px-5 py-12">
       <div className="w-full max-w-2xl">
         {/* Header with Icon */}
         <div className="text-center mb-16">

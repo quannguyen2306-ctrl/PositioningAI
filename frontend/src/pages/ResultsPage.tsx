@@ -1,19 +1,27 @@
 import { useState } from 'react'
 import { Eye } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
+import type { SessionRecord } from '../contexts/AnalysisContext'
 import { DashHeader } from '../components/dashboard/DashHeader'
 import { Sidebar } from '../components/dashboard/Sidebar'
 import { HeroMetrics } from '../components/dashboard/HeroMetrics'
 import { OverviewPanel } from '../components/dashboard/panels/OverviewPanel'
 import { SettingsPanel } from '../components/dashboard/panels/SettingsPanel'
+import { HistoryPanel } from '../components/dashboard/panels/HistoryPanel'
 import { EvaluationTable } from '../components/results/EvaluationTable'
 import { PCAViz } from '../components/results/PCAViz'
 import { RecommendationsList } from '../components/results/RecommendationsList'
 import type { NavSection } from '../components/dashboard/Sidebar'
 
 export function ResultsPage() {
-  const { results, progress, error, setProgress, setResults, setError } = useAnalysis()
+  const { results, progress, error, sessionHistory, restoreSession, deleteSession, clearAllSessions, analysisRequest } = useAnalysis()
   const [activeSection, setActiveSection] = useState<NavSection>('overview')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const handleRestoreSession = (record: SessionRecord) => {
+    restoreSession(record)
+    setActiveSection('overview')
+  }
 
   const isLoading = !results && progress?.status !== 'completed'
 
@@ -94,13 +102,22 @@ export function ResultsPage() {
 
   return (
     <div className="flex flex-col h-screen bg-base animate-fade-up">
-      <DashHeader onSettingsClick={() => setActiveSection('settings')} />
+      <DashHeader
+        onSettingsClick={() => setActiveSection('settings')}
+        onMenuClick={() => setSidebarOpen(true)}
+      />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           activeSection={activeSection}
-          onNavigate={setActiveSection}
+          onNavigate={(s) => {
+            setActiveSection(s)
+            setSidebarOpen(false)
+          }}
           testCount={results.eval.total_questions}
+          historyCount={sessionHistory.length}
+          mobileOpen={sidebarOpen}
+          onMobileClose={() => setSidebarOpen(false)}
         />
 
         <main className="flex-1 overflow-y-auto">
@@ -116,6 +133,7 @@ export function ResultsPage() {
             {activeSection === 'overview' && (
               <OverviewPanel
                 results={results}
+                businessUrl={analysisRequest?.url ?? ''}
                 onGoToRecommendations={() => setActiveSection('recommendations')}
               />
             )}
@@ -133,6 +151,14 @@ export function ResultsPage() {
               <RecommendationsList recs={results.recs} />
             )}
             {activeSection === 'settings' && <SettingsPanel />}
+            {activeSection === 'history' && (
+              <HistoryPanel
+                sessions={sessionHistory}
+                onRestore={handleRestoreSession}
+                onDelete={deleteSession}
+                onClearAll={clearAllSessions}
+              />
+            )}
           </div>
         </main>
       </div>

@@ -1,6 +1,64 @@
+/* ─── Inter font ──────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── SnowUI v3 Design Tokens (CSS Custom Properties) ────────────────────── */
+:root {
+  /* ── SURFACES (4-layer system) ── */
+  --surface-canvas:   #1B1D21;   /* page background — lowest layer */
+  --surface-sidebar:  #232629;   /* left nav + right panel */
+  --surface-card:     #2A2D32;   /* cards, chart containers, stat panels */
+  --surface-elevated: #32353B;   /* dropdowns, tooltips, active/hover states */
+
+  /* ── BORDERS (tonal, near-invisible) ── */
+  --border-ghost:   rgba(255, 255, 255, 0.06);   /* card edges */
+  --border-subtle:  rgba(255, 255, 255, 0.10);   /* inputs, dividers */
+  --border-medium:  rgba(255, 255, 255, 0.14);   /* focused inputs */
+
+  /* ── TEXT (opacity-based hierarchy) ── */
+  --text-primary:   rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.60);
+  --text-muted:     rgba(255, 255, 255, 0.38);
+  --text-ghost:     rgba(255, 255, 255, 0.20);
+
+  /* ── ACCENT PURPLE ── */
+  --accent-purple:  #8B6FFF;
+  --accent-dim:     #7B5EEE;
+  --accent-wash:    rgba(139, 111, 255, 0.12);   /* active nav bg, badge bg */
+  --accent-border:  rgba(139, 111, 255, 0.45);   /* form focus, glow ring */
+  --accent-glow:    rgba(139, 111, 255, 0.12);
+
+  /* ── DATA COLORS (charts and score indicators ONLY) ── */
+  --data-teal:    #4ECDC4;
+  --data-blue:    #74B3F0;
+  --data-lavender:#B8A9FF;
+  --data-green:   #6FDFB0;
+  --data-amber:   #F5C97A;
+  --data-red:     #E07B7B;
+
+  /* Score aliases */
+  --score-high: #4ECDC4;
+  --score-mid:  #F5C97A;
+  --score-low:  #E07B7B;
+
+  /* ── SHADOWS ── */
+  --shadow-card:  0 1px 4px rgba(0, 0, 0, 0.25);
+  --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-glow:  0 0 0 1px rgba(139, 111, 255, 0.45), 0 0 24px rgba(139, 111, 255, 0.12);
+  --shadow-focus-ring: 0 0 0 3px rgba(139, 111, 255, 0.12);
+
+  /* ── LAYOUT ── */
+  --sidebar-width:  200px;
+  --topbar-height:   48px;
+
+  /* ── TYPOGRAPHY ── */
+  --font-display: 'Inter', sans-serif;
+  --font-body:    'Inter', sans-serif;
+  --font-mono:    'Inter', sans-serif;
+}
 
 /* ─── Base resets ─────────────────────────────────────────────────────────── */
 *, *::before, *::after {
@@ -14,10 +72,10 @@ html, body, #root {
 }
 
 body {
-  background-color: #0d0d10;
-  color: #f0f0f4;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
+  background-color: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -28,14 +86,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d0d10;
+  background: var(--surface-canvas);
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a32;
+  background: var(--surface-elevated);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a46;
+  background: var(--surface-card);
 }
 
 /* ─── Custom range slider ─────────────────────────────────────────────────── */
@@ -44,7 +102,7 @@ input[type='range'] {
   appearance: none;
   width: 100%;
   height: 4px;
-  background: #2a2a32;
+  background: var(--surface-elevated);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -55,23 +113,23 @@ input[type='range']::-webkit-slider-runnable-track {
   border-radius: 2px;
   background: linear-gradient(
     to right,
-    #7c5cfc 0%,
-    #7c5cfc var(--slider-fill, 50%),
-    #2a2a32 var(--slider-fill, 50%),
-    #2a2a32 100%
+    var(--accent-purple) 0%,
+    var(--accent-purple) var(--slider-fill, 50%),
+    var(--surface-elevated) var(--slider-fill, 50%),
+    var(--surface-elevated) 100%
   );
 }
 
 input[type='range']::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: #2a2a32;
+  background: var(--surface-elevated);
 }
 
 input[type='range']::-moz-range-progress {
   height: 4px;
   border-radius: 2px;
-  background: #7c5cfc;
+  background: var(--accent-purple);
 }
 
 input[type='range']::-webkit-slider-thumb {
@@ -81,7 +139,7 @@ input[type='range']::-webkit-slider-thumb {
   height: 16px;
   border-radius: 50%;
   background: white;
-  border: 2px solid #7c5cfc;
+  border: 2px solid var(--accent-purple);
   cursor: pointer;
   margin-top: -6px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
@@ -93,14 +151,14 @@ input[type='range']::-moz-range-thumb {
   height: 16px;
   border-radius: 50%;
   background: white;
-  border: 2px solid #7c5cfc;
+  border: 2px solid var(--accent-purple);
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
   transition: border-color 0.15s ease;
 }
 
 input[type='range']:hover::-webkit-slider-thumb {
-  box-shadow: 0 0 0 4px rgba(124, 92, 252, 0.2);
+  box-shadow: 0 0 0 4px var(--accent-glow);
 }
 
 input[type='range']:disabled {
@@ -116,35 +174,60 @@ input[type='range']:disabled::-webkit-slider-thumb {
 @layer components {
   /* Card surface */
   .card {
-    @apply bg-surface border border-subtle rounded-2xl shadow-card;
+    @apply rounded-2xl;
+    background-color: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-card);
   }
 
   .card-raised {
-    @apply bg-raised border border-subtle rounded-xl shadow-card;
+    @apply rounded-xl;
+    background-color: var(--surface-elevated);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-card);
   }
 
   /* Form input base */
   .input-base {
-    @apply w-full bg-raised border border-subtle rounded-md px-3.5 py-2.5
-           text-md text-text-primary font-body placeholder:text-text-muted
+    @apply w-full rounded-md px-3.5 py-2.5
+           text-md font-body placeholder:text-text-muted
            outline-none transition-all duration-150
-           focus:border-accent focus:shadow-focus-ring
            disabled:opacity-40 disabled:cursor-not-allowed;
+    background-color: var(--surface-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+  }
+
+  .input-base:focus {
+    border-color: var(--accent-border);
+    box-shadow: var(--shadow-focus-ring);
   }
 
   /* Input label */
   .input-label {
-    @apply font-display font-semibold text-xs uppercase tracking-widest text-text-secondary mb-1.5 block;
+    @apply font-display font-semibold text-xs uppercase tracking-widest mb-1.5 block;
+    color: var(--text-secondary);
   }
 
   /* Accent button */
   .btn-accent {
-    @apply bg-accent text-white font-display font-semibold text-md rounded-md
+    @apply font-display font-semibold text-md rounded-md
            px-4 py-3 w-full cursor-pointer border-none outline-none
            transition-all duration-150
-           hover:-translate-y-px hover:shadow-accent-glow hover:bg-[#6b4ef0]
-           active:translate-y-0 active:shadow-none
            disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none;
+    background-color: var(--accent-purple);
+    color: white;
+  }
+
+  .btn-accent:hover:not(:disabled) {
+    @apply -translate-y-px;
+    background-color: var(--accent-dim);
+    box-shadow: var(--shadow-accent-glow);
+  }
+
+  .btn-accent:active:not(:disabled) {
+    @apply translate-y-0;
+    box-shadow: none;
   }
 
   /* Pill button */
@@ -153,16 +236,34 @@ input[type='range']:disabled::-webkit-slider-thumb {
            cursor-pointer border-none outline-none transition-all duration-150;
   }
 
+  /* Pill badge (inline tag/label) */
+  .pill {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs text-text-secondary
+           border border-subtle bg-raised transition-all duration-150;
+  }
+
+  .pill:hover {
+    background-color: var(--surface-card);
+    color: var(--text-primary);
+  }
+
   /* Nav item */
   .nav-item {
     @apply flex items-center gap-3 px-4 py-2.5 cursor-pointer
-           font-display font-semibold text-base text-text-secondary
-           rounded-r-lg transition-all duration-150
-           hover:bg-white/[0.03];
+           font-display font-semibold text-base
+           rounded-r-lg transition-all duration-150;
+    color: var(--text-secondary);
+  }
+
+  .nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
   }
 
   .nav-item-active {
-    @apply bg-accent/10 text-text-primary border-l-[3px] border-accent;
+    @apply border-l-[3px];
+    background-color: var(--accent-wash);
+    color: var(--text-primary);
+    border-left-color: var(--accent-border);
   }
 
   /* Score badge */
@@ -171,15 +272,21 @@ input[type='range']:disabled::-webkit-slider-thumb {
   }
 
   .score-badge-high {
-    @apply bg-score-high/10 text-score-high border border-score-high/25;
+    background-color: rgba(78, 205, 196, 0.1);
+    color: var(--score-high);
+    border: 1px solid rgba(78, 205, 196, 0.25);
   }
 
   .score-badge-mid {
-    @apply bg-score-mid/10 text-score-mid border border-score-mid/25;
+    background-color: rgba(245, 201, 122, 0.1);
+    color: var(--score-mid);
+    border: 1px solid rgba(245, 201, 122, 0.25);
   }
 
   .score-badge-low {
-    @apply bg-score-low/10 text-score-low border border-score-low/25;
+    background-color: rgba(224, 123, 123, 0.1);
+    color: var(--score-low);
+    border: 1px solid rgba(224, 123, 123, 0.25);
   }
 }
 

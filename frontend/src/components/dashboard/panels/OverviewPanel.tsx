@@ -1,12 +1,14 @@
 import { ArrowRight } from 'lucide-react'
 import type { AnalysisResult } from '../../../api/types'
+import { exportCSV } from '../../../utils/reportExporter'
 
 interface OverviewPanelProps {
   results: AnalysisResult
+  businessUrl: string
   onGoToRecommendations: () => void
 }
 
-export function OverviewPanel({ results, onGoToRecommendations }: OverviewPanelProps) {
+export function OverviewPanel({ results, businessUrl, onGoToRecommendations }: OverviewPanelProps) {
   const { biz, eval: evalData, comp_docs, recs } = results
   const breakdown = evalData.score_breakdown
   const totalQ = evalData.total_questions
@@ -33,7 +35,7 @@ export function OverviewPanel({ results, onGoToRecommendations }: OverviewPanelP
         {/* High / Medium / Low row */}
         <div className="grid grid-cols-3 gap-3">
           <div className="card-raised p-4 text-center">
-            <div className="font-mono text-2xl font-medium text-score-high">{breakdown['high (8-10)']}</div>
+            <div className="font-mono text-2xl font-medium text-text-primary">{breakdown['high (8-10)']}</div>
             <div className="text-2xs uppercase tracking-widest text-text-muted mt-1.5">High</div>
             <div className="h-0.5 bg-subtle rounded-full mt-2.5 overflow-hidden">
               <div
@@ -43,7 +45,7 @@ export function OverviewPanel({ results, onGoToRecommendations }: OverviewPanelP
             </div>
           </div>
           <div className="card-raised p-4 text-center">
-            <div className="font-mono text-2xl font-medium text-score-mid">{breakdown['medium (5-7)']}</div>
+            <div className="font-mono text-2xl font-medium text-text-primary">{breakdown['medium (5-7)']}</div>
             <div className="text-2xs uppercase tracking-widest text-text-muted mt-1.5">Medium</div>
             <div className="h-0.5 bg-subtle rounded-full mt-2.5 overflow-hidden">
               <div
@@ -53,7 +55,7 @@ export function OverviewPanel({ results, onGoToRecommendations }: OverviewPanelP
             </div>
           </div>
           <div className="card-raised p-4 text-center">
-            <div className="font-mono text-2xl font-medium text-score-low">{breakdown['low (0-4)']}</div>
+            <div className="font-mono text-2xl font-medium text-text-primary">{breakdown['low (0-4)']}</div>
             <div className="text-2xs uppercase tracking-widest text-text-muted mt-1.5">Low</div>
             <div className="h-0.5 bg-subtle rounded-full mt-2.5 overflow-hidden">
               <div
@@ -70,7 +72,7 @@ export function OverviewPanel({ results, onGoToRecommendations }: OverviewPanelP
             <p className="input-label">Products & Services</p>
             <div className="flex flex-wrap gap-2 mt-2">
               {biz.products_services.map((p) => (
-                <span key={p} className="px-3 py-1 bg-raised border border-subtle rounded-full text-xs text-text-primary">
+                <span key={p} className="pill">
                   {p}
                 </span>
               ))}
@@ -88,7 +90,7 @@ export function OverviewPanel({ results, onGoToRecommendations }: OverviewPanelP
                 href={c.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-2.5 py-1 bg-raised border border-subtle rounded-full text-xs text-text-secondary hover:text-text-primary hover:border-border-hover transition-colors"
+                className="pill"
               >
                 {c.domain}
               </a>
@@ -101,7 +103,7 @@ export function OverviewPanel({ results, onGoToRecommendations }: OverviewPanelP
       <div className="flex-[1] min-w-0">
         <div
           className="rounded-2xl p-6 h-full"
-          style={{ background: 'linear-gradient(135deg, #2a1f5c, #1a1040)', border: '1px solid rgba(124,92,252,0.2)' }}
+          style={{ background: 'linear-gradient(135deg, var(--surface-card), var(--surface-sidebar))', borderColor: 'var(--accent-border)', borderWidth: '1px' }}
         >
           <p className="font-display font-bold text-lg text-text-primary mb-4">Top Recommendations</p>
           <div className="space-y-3 mb-6">
@@ -124,8 +126,9 @@ export function OverviewPanel({ results, onGoToRecommendations }: OverviewPanelP
               <ArrowRight size={14} />
             </button>
             <button
+              onClick={() => exportCSV(results, businessUrl)}
               className="w-full py-2.5 rounded-md text-sm font-display font-semibold text-accent transition-colors hover:bg-accent/10"
-              style={{ border: '1px solid rgba(124,92,252,0.4)' }}
+              style={{ border: '1px solid var(--accent-border)' }}
             >
               Export Report
             </button>
