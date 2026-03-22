@@ -96,7 +96,7 @@ export function ResultsPage() {
   }
 
   const visibilityScore = results.eval.avg_visibility_score
-  const mentionRate = results.eval.mention_rate * 100
+  const mentionRate = results.eval.mention_rate
   const highCount = results.eval.score_breakdown['high (8-10)']
   const competitorCount = results.comp_docs.length
 
