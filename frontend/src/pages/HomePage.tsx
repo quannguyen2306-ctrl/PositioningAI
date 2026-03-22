@@ -1,283 +1,315 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, ChevronDown } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import type { AnalysisRequest } from '../api/types'
 
-export function HomePage() {
+const BUBBLES = Array.from({ length: 18 }, (_, i) => ({
+  id: i,
+  left: `${5 + (i * 5.3) % 90}%`,
+  size: 6 + (i * 7) % 28,
+  duration: 8 + (i * 3.7) % 14,
+  delay: (i * 1.3) % 8,
+}))
+
+export default function HomePage() {
   const navigate = useNavigate()
-  const { startAnalysis } = useAnalysis()
+  const { startAnalysis, sessionHistory, restoreSession } = useAnalysis()
 
   const [url, setUrl] = useState('')
   const [openaiKey, setOpenaiKey] = useState('')
   const [serperKey, setSerperKey] = useState('')
-  const [nCompetitors, setNCompetitors] = useState(10)
+  const [showOpenai, setShowOpenai] = useState(false)
+  const [showSerper, setShowSerper] = useState(false)
+  const [nCompetitors, setNCompetitors] = useState(8)
   const [nQuestions, setNQuestions] = useState(10)
-  const [customQuestions, setCustomQuestions] = useState('')
+  const [customQs, setCustomQs] = useState('')
+  const [advanced, setAdvanced] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false)
-  const [showSerperKey, setShowSerperKey] = useState(false)
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
-  const isFormValid = url.trim() && openaiKey.trim() && serperKey.trim()
+  useEffect(() => {
+    const sk = localStorage.getItem('serper_key') ?? ''
+    const ok = localStorage.getItem('openai_key') ?? ''
+    if (sk) setSerperKey(sk)
+    if (ok) setOpenaiKey(ok)
+  }, [])
+
+  const canSubmit = url.trim() && openaiKey.trim() && serperKey.trim() && !loading
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isFormValid) return
+    if (!canSubmit) return
+
+    localStorage.setItem('openai_key', openaiKey)
+    localStorage.setItem('serper_key', serperKey)
 
     setLoading(true)
     setError(null)
 
+    const req: AnalysisRequest = {
+      url: url.trim(),
+      openai_key: openaiKey.trim(),
+      serper_key: serperKey.trim(),
+      n_competitors: nCompetitors,
+      n_questions: nQuestions,
+      custom_questions: customQs
+        ? customQs.split('\n').map(q => q.trim()).filter(Boolean)
+        : undefined,
+    }
+
     try {
-      const customQuestionsArray = customQuestions
-        .split('\n')
-        .map(q => q.trim())
-        .filter(q => q.length > 0)
-
-      const req: AnalysisRequest = {
-        url: url.trim(),
-        openai_key: openaiKey.trim(),
-        serper_key: serperKey.trim(),
-        n_competitors: nCompetitors,
-        n_questions: nQuestions,
-        custom_questions: customQuestionsArray.length > 0 ? customQuestionsArray : undefined,
-      }
-
-      const sessionId = await startAnalysis(req)
-      navigate(`/results/${sessionId}`)
+      const sid = await startAnalysis(req)
+      navigate(`/results/${sid}`)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to start analysis'
-      setError(message)
-    } finally {
+      setError(err instanceof Error ? err.message : String(err))
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-base text-text-primary flex items-center justify-center px-5 py-12">
-      <div className="w-full max-w-2xl">
-        {/* Header with Icon */}
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 bg-accent rounded-full blur-2xl opacity-30 animate-pulse" />
-              <Eye size={48} className="text-accent relative z-10" strokeWidth={1.5} />
-            </div>
+    <div
+      className="ocean-bg"
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Animated bubbles */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        {BUBBLES.map(b => (
+          <div
+            key={b.id}
+            className="bubble"
+            style={{
+              left: b.left,
+              bottom: 0,
+              width: b.size,
+              height: b.size,
+              animationDuration: `${b.duration}s`,
+              animationDelay: `${b.delay}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Light ray */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: '25%',
+        width: '50%',
+        height: '55%',
+        background: 'linear-gradient(180deg, rgba(0,90,180,0.07) 0%, transparent 100%)',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }} />
+
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 560 }}>
+        {/* Hero */}
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div className="animate-float" style={{ fontSize: 56, marginBottom: 14, display: 'inline-block' }}>
+            🌊
           </div>
-          <h1 className="font-display text-4xl font-bold mb-3 text-text-primary">
-            LLM Visibility Diagnostic
+          <h1 style={{
+            fontSize: 44,
+            fontWeight: 700,
+            margin: '0 0 8px',
+            background: 'linear-gradient(135deg, #e0f4ff 0%, #00b4d8 50%, #00f5d4 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            lineHeight: 1.1,
+          }}>
+            Blue Ocean
           </h1>
-          <p className="text-lg text-text-muted">
-            See how AI sees your business — and what to fix.
+          <p style={{ color: 'var(--text-secondary)', margin: '0 0 4px', fontSize: 16 }}>
+            AI Visibility Intelligence
+          </p>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 13 }}>
+            Discover your territory in the AI ocean — and claim the unclaimed
           </p>
         </div>
 
-        {/* Main Form Card */}
-        <form onSubmit={handleSubmit} className="card space-y-6">
-          {/* URL Input Section */}
-          <div>
-            <label htmlFor="url" className="input-label">
-              Your Website URL
-            </label>
-            <input
-              id="url"
-              type="url"
-              placeholder="https://yourcompany.com"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
-              disabled={loading}
-              className="input-base"
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-subtle" />
-
-          {/* API Keys Section */}
-          <div className="space-y-5">
-            {/* OpenAI Key */}
-            <div>
-              <label htmlFor="openaiKey" className="input-label">
-                OpenAI API Key
+        {/* Form */}
+        <div className="glass glow-blue" style={{ padding: '28px' }}>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.1em' }}>
+                YOUR WEBSITE
               </label>
-              <div className="relative">
-                <input
-                  id="openaiKey"
-                  type={showOpenaiKey ? 'text' : 'password'}
-                  placeholder="sk-..."
-                  value={openaiKey}
-                  onChange={e => setOpenaiKey(e.target.value)}
-                  disabled={loading}
-                  className="input-base pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                  disabled={loading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40"
-                  aria-label={showOpenaiKey ? 'Hide OpenAI key' : 'Show OpenAI key'}
-                >
-                  {showOpenaiKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              <input
+                className="ocean-input"
+                type="url"
+                placeholder="https://yourbusiness.com"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.1em' }}>
+                  OPENAI KEY
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="ocean-input"
+                    type={showOpenai ? 'text' : 'password'}
+                    placeholder="sk-…"
+                    value={openaiKey}
+                    onChange={e => setOpenaiKey(e.target.value)}
+                    style={{ paddingRight: 36 }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOpenai(v => !v)}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12 }}
+                  >
+                    {showOpenai ? '👁' : '○'}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.1em' }}>
+                  SERPER KEY
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="ocean-input"
+                    type={showSerper ? 'text' : 'password'}
+                    placeholder="your key"
+                    value={serperKey}
+                    onChange={e => setSerperKey(e.target.value)}
+                    style={{ paddingRight: 36 }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSerper(v => !v)}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12 }}
+                  >
+                    {showSerper ? '👁' : '○'}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Serper Key */}
-            <div>
-              <label htmlFor="serperKey" className="input-label">
-                Serper API Key{' '}
-                <a
-                  href="https://serper.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent-light hover:text-accent text-xs font-normal"
-                >
-                  (Free at serper.dev)
-                </a>
-              </label>
-              <div className="relative">
-                <input
-                  id="serperKey"
-                  type={showSerperKey ? 'text' : 'password'}
-                  placeholder="..."
-                  value={serperKey}
-                  onChange={e => setSerperKey(e.target.value)}
-                  disabled={loading}
-                  className="input-base pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSerperKey(!showSerperKey)}
-                  disabled={loading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40"
-                  aria-label={showSerperKey ? 'Hide Serper key' : 'Show Serper key'}
-                >
-                  {showSerperKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Advanced Settings Collapsible */}
-          <div className="border-t border-subtle pt-4">
             <button
               type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              disabled={loading}
-              className="w-full flex items-center justify-between text-text-secondary hover:text-text-primary transition-colors disabled:opacity-40 py-2"
+              onClick={() => setAdvanced(v => !v)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '8px 0',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                fontSize: 11,
+                letterSpacing: '0.05em',
+                marginBottom: advanced ? 12 : 20,
+              }}
             >
-              <span className="font-display font-semibold text-sm uppercase tracking-widest">
-                Advanced Settings
-              </span>
-              <ChevronDown
-                size={18}
-                className={`transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`}
-              />
+              <span>ADVANCED SETTINGS</span>
+              <span style={{ transform: advanced ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
             </button>
 
-            {/* Collapsible Content */}
-            <div
-              className={`advanced-settings ${showAdvanced ? 'open' : ''}`}
-              style={{ overflow: 'hidden', maxHeight: showAdvanced ? '500px' : '0' }}
-            >
-              <div className="pt-4 space-y-6">
-                {/* Sliders Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Competitors Slider */}
-                  <div>
-                    <label htmlFor="nCompetitors" className="input-label">
-                      <span className="font-mono">{nCompetitors}</span> Competitors
-                    </label>
-                    <input
-                      id="nCompetitors"
-                      type="range"
-                      min="5"
-                      max="20"
-                      value={nCompetitors}
-                      onChange={e => setNCompetitors(parseInt(e.target.value))}
-                      disabled={loading}
-                      className="w-full"
-                      style={{ '--slider-fill': `${((nCompetitors - 5) / 15) * 100}%` } as React.CSSProperties}
-                    />
-                    <div className="text-xs text-text-muted mt-2">5 – 20 domains</div>
-                  </div>
-
-                  {/* Questions Slider */}
-                  <div>
-                    <label htmlFor="nQuestions" className="input-label">
-                      <span className="font-mono">{nQuestions}</span> Questions
-                    </label>
-                    <input
-                      id="nQuestions"
-                      type="range"
-                      min="5"
-                      max="15"
-                      value={nQuestions}
-                      onChange={e => setNQuestions(parseInt(e.target.value))}
-                      disabled={loading}
-                      className="w-full"
-                      style={{ '--slider-fill': `${((nQuestions - 5) / 10) * 100}%` } as React.CSSProperties}
-                    />
-                    <div className="text-xs text-text-muted mt-2">5 – 15 questions</div>
-                  </div>
-                </div>
-
-                {/* Custom Questions */}
+            {advanced && (
+              <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label htmlFor="customQuestions" className="input-label">
-                    Custom Questions (Optional)
+                  <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.08em' }}>
+                    <span>COMPETITORS TO SCAN</span>
+                    <span style={{ color: 'var(--glow-blue)' }}>{nCompetitors}</span>
+                  </label>
+                  <input type="range" min={5} max={20} value={nCompetitors} onChange={e => setNCompetitors(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--glow-blue)' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.08em' }}>
+                    <span>TEST QUESTIONS</span>
+                    <span style={{ color: 'var(--glow-blue)' }}>{nQuestions}</span>
+                  </label>
+                  <input type="range" min={5} max={15} value={nQuestions} onChange={e => setNQuestions(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--glow-blue)' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.08em' }}>
+                    CUSTOM QUESTIONS (optional, one per line)
                   </label>
                   <textarea
-                    id="customQuestions"
-                    placeholder="One question per line..."
-                    value={customQuestions}
-                    onChange={e => setCustomQuestions(e.target.value)}
-                    disabled={loading}
-                    className="input-base min-h-[100px] font-mono text-sm resize-none"
+                    className="ocean-input"
+                    rows={3}
+                    value={customQs}
+                    onChange={e => setCustomQs(e.target.value)}
+                    placeholder="What is the best X for Y?&#10;Top solutions in [city]?"
+                    style={{ resize: 'vertical' }}
                   />
                 </div>
               </div>
+            )}
+
+            {error && (
+              <div style={{ padding: '10px 14px', background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', borderRadius: 8, fontSize: 12, color: 'var(--score-low)', marginBottom: 16 }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn-ocean"
+              disabled={!canSubmit}
+              style={{ width: '100%', fontSize: 15, padding: '13px 24px' }}
+            >
+              {loading ? '🌊 Diving in…' : 'Dive into the Ocean →'}
+            </button>
+          </form>
+        </div>
+
+        {/* Recent sessions */}
+        {sessionHistory.length > 0 && (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.1em' }}>RECENT DIVES</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {sessionHistory.slice(0, 3).map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => { restoreSession(s); navigate(`/results/${s.id}`) }}
+                  className="glass-light"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', textAlign: 'left' }}
+                >
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>
+                      {(() => { try { return new URL(s.businessUrl).hostname } catch { return s.businessUrl } })()}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{new Date(Number(s.id)).toLocaleDateString()}</div>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: scoreColor(s.overallScore), fontFamily: 'monospace' }}>
+                    {s.overallScore?.toFixed(1)}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
+        )}
 
-          {/* Error Message */}
-          {error && (
-            <div className="bg-score-low/10 border border-score-low rounded-lg px-4 py-3">
-              <p className="text-score-low text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* Loading Indicator */}
-          {loading && (
-            <div className="bg-accent/5 border border-accent rounded-lg px-4 py-3">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                <p className="text-text-secondary text-sm">Analyzing your business...</p>
-              </div>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={!isFormValid || loading}
-            className="btn-accent w-full"
-          >
-            {loading ? 'Analyzing...' : 'Analyze →'}
-          </button>
-        </form>
-
-        {/* Footer */}
-        <div className="mt-12 text-center text-text-muted text-sm space-y-2">
-          <p>
-            This tool analyzes how LLMs perceive your business compared to competitors.
-          </p>
-          <p>
-            All analysis happens securely using your own API keys.
-          </p>
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--text-dim)' }}>
+          API keys stored locally · never sent to our servers
         </div>
       </div>
     </div>
   )
+}
+
+function scoreColor(score?: number): string {
+  if (!score) return 'var(--text-muted)'
+  if (score >= 7) return 'var(--score-high)'
+  if (score >= 4) return 'var(--score-mid)'
+  return 'var(--score-low)'
 }

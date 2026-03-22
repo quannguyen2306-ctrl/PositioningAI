@@ -5,18 +5,17 @@ import type {
   PcaInterpretation,
   Recommendations,
   CompDoc,
+  Archetype,
+  BlueOceanZone,
+  BlueOceanOpportunity,
+  PcaPoint,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 
 const STALL_TIMEOUT_MS = 120_000 // 2 minutes without any SSE event → give up
 
-export interface PcaPoint {
-  components: number[]
-  source: string
-  domain: string
-  text: string
-}
+export type { PcaPoint }
 
 export interface SseCallbacks {
   onProgress: (pct: number, step: string) => void
@@ -25,7 +24,10 @@ export interface SseCallbacks {
   onQuestions: (questions: string[]) => void
   onEval: (evalData: EvalSummary) => void
   onPca: (points: PcaPoint[], interpretations: PcaInterpretation[]) => void
+  onArchetype: (archetype: Archetype) => void
+  onBlueOcean: (zones: BlueOceanZone[], opportunities: BlueOceanOpportunity[]) => void
   onRecommendations: (recs: Recommendations) => void
+  onSessionId: (sessionId: string) => void
   onComplete: () => void
   onError: (msg: string) => void
 }
@@ -44,7 +46,6 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
 
   const controller = new AbortController()
 
-  // Stall detection: fire onError if no event arrives within STALL_TIMEOUT_MS
   let stallTimer: ReturnType<typeof setTimeout> | null = null
 
   const resetStallTimer = () => {
@@ -73,7 +74,6 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
       const decoder = new TextDecoder()
       let buffer = ''
 
-      // Start stall timer once the stream is open
       resetStallTimer()
 
       while (true) {
@@ -82,7 +82,6 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
 
         buffer += decoder.decode(value, { stream: true })
 
-        // SSE frames are separated by double newline
         const frames = buffer.split('\n\n')
         buffer = frames.pop() ?? ''
 
@@ -91,13 +90,10 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
           if (!dataLine) continue
           try {
             const payload = JSON.parse(dataLine.slice(6))
-
-            // Reset stall timer on every event, including heartbeat
             resetStallTimer()
 
             switch (payload.event) {
               case 'heartbeat':
-                // Keepalive — no UI action needed
                 break
               case 'progress':
                 callbacks.onProgress(payload.pct, payload.step)
@@ -119,6 +115,18 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
                   payload.points as PcaPoint[],
                   payload.interpretations as PcaInterpretation[]
                 )
+                break
+              case 'archetype':
+                callbacks.onArchetype(payload.archetype as Archetype)
+                break
+              case 'blue_ocean':
+                callbacks.onBlueOcean(
+                  payload.zones as BlueOceanZone[],
+                  payload.opportunities as BlueOceanOpportunity[]
+                )
+                break
+              case 'session_id':
+                callbacks.onSessionId(payload.session_id as string)
                 break
               case 'recommendations':
                 callbacks.onRecommendations(payload.recs as Recommendations)
@@ -154,7 +162,33 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
 /** Build a minimal CompDoc list from competitor URLs returned by the SSE event. */
 export function urlsToCompDocs(urls: string[]): CompDoc[] {
   return urls.map((url) => {
-    const domain = new URL(url).hostname.replace(/^www\./, '')
-    return { url, domain, text: '' }
+    try {
+      const domain = new URL(url).hostname.replace(/^www\./, '')
+      return { url, domain, text: '' }
+    } catch {
+      return { url, domain: url, text: '' }
+    }
   })
+}
+
+/** Submit new content to the Content Lab endpoint for re-evaluation. */
+export async function submitContentLab(
+  sessionId: string,
+  newContent: string,
+  openaiKey: string
+) {
+  const res = await fetch(`${BASE}/api/content-lab/evaluate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: sessionId,
+      new_content: newContent,
+      openai_key: openaiKey,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(err || `Content Lab error: ${res.status}`)
+  }
+  return res.json()
 }

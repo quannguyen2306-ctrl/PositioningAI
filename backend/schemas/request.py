@@ -17,3 +17,11 @@ class AnalysisRequest(BaseModel):
     n_competitors: int = Field(default=10, ge=5, le=20)
     n_questions: int = Field(default=10, ge=5, le=15)
     custom_questions: Optional[list[str]] = None
+
+
+class ContentLabRequest(BaseModel):
+    """Request to re-evaluate new content in an existing session."""
+
+    session_id: str
+    new_content: str
+    openai_key: str

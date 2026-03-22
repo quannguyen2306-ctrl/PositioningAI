@@ -27,6 +27,7 @@ export interface EvalResult {
   key_observation: string;
   user_chunk_count: number;
   comp_chunk_count: number;
+  is_blue_ocean?: boolean;
 }
 
 export interface EvalSummary {
@@ -36,12 +37,20 @@ export interface EvalSummary {
   total_questions: number;
   score_breakdown: { 'high (8-10)': number; 'medium (5-7)': number; 'low (0-4)': number };
   top_competitor_domains: string[];
+  blue_ocean_opportunities?: BlueOceanOpportunity[];
 }
 
 export interface PcaMeta {
   source: string;
   url: string;
   domain: string;
+}
+
+export interface PcaPoint {
+  components: number[];
+  source: string;
+  domain: string;
+  text: string;
 }
 
 export interface PcaInterpretation {
@@ -82,6 +91,28 @@ export interface CompDoc {
   text: string;
 }
 
+export interface Archetype {
+  name: string;
+  tagline: string;
+  description: string;
+  strategy: string;
+  icon: string;
+  closest_competitor?: string | null;
+}
+
+export interface BlueOceanZone {
+  x: number;
+  y: number;
+  radius: number;
+  label: string;
+}
+
+export interface BlueOceanOpportunity {
+  question: string;
+  visibility_score: number;
+  opportunity_strength: 'high' | 'medium';
+}
+
 export interface AnalysisResult {
   biz: BusinessProfile;
   comp_docs: CompDoc[];
@@ -90,6 +121,17 @@ export interface AnalysisResult {
   pca_meta: PcaMeta[];
   interps: PcaInterpretation[];
   recs: Recommendations;
+  archetype?: Archetype;
+  blue_ocean_zones?: BlueOceanZone[];
+  blue_ocean_opportunities?: BlueOceanOpportunity[];
+}
+
+export interface ContentLabResult {
+  eval: EvalSummary;
+  pca_points: PcaPoint[];
+  archetype: Archetype;
+  blue_ocean_zones: BlueOceanZone[];
+  blue_ocean_opportunities: BlueOceanOpportunity[];
 }
 
 export interface ProgressEvent {

@@ -11,9 +11,12 @@ asks a question:
      as a live retrieval-augmented product would.
   4. Score whether the user's business was mentioned, how prominently,
      and why it might have been missed.
+
+All questions are evaluated in parallel using ThreadPoolExecutor for speed.
 """
 
 import json
+import concurrent.futures
 from openai import OpenAI
 from .embeddings import EmbeddingStore
 
@@ -156,6 +159,7 @@ def evaluate_single_question(
             "key_observation": "No data available for this question.",
             "user_chunk_count": 0,
             "comp_chunk_count": 0,
+            "is_blue_ocean": False,
         }
 
     # Build context string for the RAG prompt
@@ -202,24 +206,27 @@ def evaluate_single_question(
     )
 
     eval_data = json.loads(eval_resp.choices[0].message.content)
+    comp_domains = eval_data.get("competitor_domains_mentioned", [])
+    business_mentioned = eval_data.get("business_mentioned", False)
 
     return {
         "question": question,
         "answer": answer,
         "retrieved_chunks": retrieved,
-        "business_mentioned": eval_data.get("business_mentioned", False),
+        "business_mentioned": business_mentioned,
         "mention_quality": eval_data.get("mention_quality", "absent"),
         "visibility_score": eval_data.get("visibility_score", 0),
-        "competitor_domains_mentioned": eval_data.get("competitor_domains_mentioned", []),
+        "competitor_domains_mentioned": comp_domains,
         "why_low_visibility": eval_data.get("why_low_visibility"),
         "key_observation": eval_data.get("key_observation", ""),
         "user_chunk_count": user_chunks,
         "comp_chunk_count": comp_chunks,
+        "is_blue_ocean": not business_mentioned and len(comp_domains) == 0,
     }
 
 
 # ---------------------------------------------------------------------------
-# Full evaluation run
+# Full evaluation run (parallel)
 # ---------------------------------------------------------------------------
 
 def run_evaluation(
@@ -227,29 +234,75 @@ def run_evaluation(
     store: EmbeddingStore,
     client: OpenAI,
     business_name: str,
-    progress_callback=None,   # optional callable(i, total) for Streamlit progress
+    progress_callback=None,
 ) -> dict:
     """
-    Run all questions through the RAG evaluator.
+    Run all questions through the RAG evaluator in parallel using ThreadPoolExecutor.
     Returns aggregated results + per-question breakdowns.
     """
-    results = []
-    for i, question in enumerate(questions):
-        result = evaluate_single_question(question, store, client, business_name)
-        results.append(result)
-        if progress_callback:
-            progress_callback(i + 1, len(questions))
+    results_map: dict[str, dict] = {}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(questions), 10)) as executor:
+        future_to_q = {
+            executor.submit(evaluate_single_question, q, store, client, business_name): q
+            for q in questions
+        }
+        completed = 0
+        for future in concurrent.futures.as_completed(future_to_q):
+            q = future_to_q[future]
+            try:
+                results_map[q] = future.result()
+            except Exception as exc:
+                results_map[q] = {
+                    "question": q,
+                    "answer": f"Evaluation failed: {exc}",
+                    "retrieved_chunks": [],
+                    "business_mentioned": False,
+                    "mention_quality": "absent",
+                    "visibility_score": 0,
+                    "competitor_domains_mentioned": [],
+                    "why_low_visibility": "Evaluation error.",
+                    "key_observation": "Could not evaluate this question.",
+                    "user_chunk_count": 0,
+                    "comp_chunk_count": 0,
+                    "is_blue_ocean": False,
+                }
+            completed += 1
+            if progress_callback:
+                progress_callback(completed, len(questions))
+
+    # Preserve original question order
+    results = [results_map[q] for q in questions if q in results_map]
 
     scores = [r["visibility_score"] for r in results]
     avg_score = sum(scores) / len(scores) if scores else 0
     mention_count = sum(1 for r in results if r["business_mentioned"])
 
-    # Find the most-mentioned competitor domains
+    # Top competitor domains
     from collections import Counter
     all_competitors: list[str] = []
     for r in results:
         all_competitors.extend(r.get("competitor_domains_mentioned", []))
     top_competitors = [d for d, _ in Counter(all_competitors).most_common(5)]
+
+    # Blue ocean opportunities: questions no business dominates
+    blue_ocean_opportunities = []
+    for r in results:
+        comp_domains = r.get("competitor_domains_mentioned", [])
+        user_mentioned = r.get("business_mentioned", False)
+        score = r.get("visibility_score", 0)
+        if not user_mentioned and len(comp_domains) == 0:
+            blue_ocean_opportunities.append({
+                "question": r["question"],
+                "visibility_score": score,
+                "opportunity_strength": "high",
+            })
+        elif not user_mentioned and len(comp_domains) <= 1 and score < 4:
+            blue_ocean_opportunities.append({
+                "question": r["question"],
+                "visibility_score": score,
+                "opportunity_strength": "medium",
+            })
 
     return {
         "results": results,
@@ -262,4 +315,5 @@ def run_evaluation(
             "medium (5-7)": sum(1 for s in scores if 5 <= s < 8),
             "low (0-4)": sum(1 for s in scores if s < 5),
         },
+        "blue_ocean_opportunities": blue_ocean_opportunities,
     }

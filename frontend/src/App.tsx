@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AnalysisProvider } from './contexts/AnalysisContext'
-import { HomePage } from './pages/HomePage'
-import { ResultsPage } from './pages/ResultsPage'
+import HomePage from './pages/HomePage'
+import ResultsPage from './pages/ResultsPage'
 
 function App() {
   return (
