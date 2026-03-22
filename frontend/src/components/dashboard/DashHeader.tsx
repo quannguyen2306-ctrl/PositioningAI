@@ -31,7 +31,7 @@ export function DashHeader({ onSettingsClick, onMenuClick }: DashHeaderProps) {
         )}
         <Eye size={20} className="text-accent" strokeWidth={1.5} />
         <span className="font-display font-bold text-md text-text-primary hidden sm:block">
-          LLM Visibility
+          One Piece
         </span>
       </div>
 

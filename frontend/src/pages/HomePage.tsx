@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, ArrowRight, Waves } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import type { AnalysisRequest } from '../api/types'
 
@@ -7,8 +8,9 @@ const BUBBLES = Array.from({ length: 18 }, (_, i) => ({
   id: i,
   left: `${5 + (i * 5.3) % 90}%`,
   size: 6 + (i * 7) % 28,
-  duration: 8 + (i * 3.7) % 14,
-  delay: (i * 1.3) % 8,
+  duration: 9 + (i * 3.7) % 16,
+  delay: (i * 1.3) % 10,
+  borderRadius: `${50 + (i * 3) % 12}% ${50 - (i * 2) % 8}% ${50 + (i * 4) % 10}% ${50 - (i * 3) % 6}%`,
 }))
 
 export default function HomePage() {
@@ -81,6 +83,7 @@ export default function HomePage() {
               height: b.size,
               animationDuration: `${b.duration}s`,
               animationDelay: `${b.delay}s`,
+              borderRadius: b.borderRadius,
             }}
           />
         ))}
@@ -90,10 +93,10 @@ export default function HomePage() {
       <div style={{
         position: 'fixed',
         top: 0,
-        left: '25%',
-        width: '50%',
+        left: 0,
+        width: '100%',
         height: '55%',
-        background: 'linear-gradient(180deg, oklch(0.47 0.07 210 / 0.07) 0%, transparent 100%)',
+        background: 'linear-gradient(180deg, oklch(0.47 0.07 210 / 0.10) 0%, transparent 100%)',
         pointerEvents: 'none',
         zIndex: 0,
       }} />
@@ -101,8 +104,8 @@ export default function HomePage() {
       <div className="relative w-full max-w-[560px]" style={{ zIndex: 1 }}>
         {/* Hero */}
         <div className="text-center mb-9">
-          <div className="animate-float inline-block text-[56px] mb-3">
-            🌊
+          <div className="animate-float inline-block mb-3" style={{ color: 'var(--color-secondary)' }}>
+            <Waves size={52} strokeWidth={1.2} />
           </div>
           <h1 style={{
             fontSize: 44,
@@ -114,7 +117,7 @@ export default function HomePage() {
             backgroundClip: 'text',
             lineHeight: 1.1,
           }}>
-            Blue Ocean
+            One Piece
           </h1>
           <p className="text-[16px] mb-1" style={{ color: 'var(--text-secondary)' }}>
             AI Visibility Intelligence
@@ -159,10 +162,11 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => setShowOpenai(v => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer text-[12px]"
+                    aria-label={showOpenai ? 'Hide OpenAI key' : 'Show OpenAI key'}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer flex items-center"
                     style={{ color: 'var(--text-muted)' }}
                   >
-                    {showOpenai ? '👁' : '○'}
+                    {showOpenai ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
                   </button>
                 </div>
               </div>
@@ -184,10 +188,11 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => setShowSerper(v => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer text-[12px]"
+                    aria-label={showSerper ? 'Hide Serper key' : 'Show Serper key'}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer flex items-center"
                     style={{ color: 'var(--text-muted)' }}
                   >
-                    {showSerper ? '👁' : '○'}
+                    {showSerper ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
                   </button>
                 </div>
               </div>
@@ -196,6 +201,8 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setAdvanced(v => !v)}
+              aria-expanded={advanced}
+              aria-label={advanced ? 'Collapse advanced settings' : 'Expand advanced settings'}
               className="w-full flex justify-between items-center py-2 bg-transparent border-none cursor-pointer text-[11px] tracking-wide"
               style={{
                 color: 'var(--text-muted)',
@@ -252,7 +259,15 @@ export default function HomePage() {
               disabled={!canSubmit}
               style={{ fontSize: 15, padding: '13px 24px' }}
             >
-              {loading ? '🌊 Diving in…' : 'Dive into the Ocean →'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Waves size={16} strokeWidth={1.5} className="animate-float" /> Diving in…
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  Dive into the Ocean <ArrowRight size={16} strokeWidth={2} />
+                </span>
+              )}
             </button>
           </form>
         </div>
@@ -275,7 +290,7 @@ export default function HomePage() {
                     </div>
                     <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{new Date(Number(s.id)).toLocaleDateString()}</div>
                   </div>
-                  <div className="text-lg font-bold" style={{ color: scoreColor(s.overallScore), fontFamily: 'monospace' }}>
+                  <div className="text-lg font-bold" style={{ color: scoreColor(s.overallScore), fontFamily: 'var(--font-body)' }}>
                     {s.overallScore?.toFixed(1)}
                   </div>
                 </button>

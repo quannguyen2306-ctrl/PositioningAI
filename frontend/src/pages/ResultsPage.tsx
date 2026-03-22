@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Waves, Map, BarChart3, Lightbulb, Compass, FlaskConical } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import OceanMap, { type OceanPoint } from '../components/ocean/OceanMap'
 import ArchetypeCard from '../components/ocean/ArchetypeCard'
@@ -95,7 +96,7 @@ export default function ResultsPage() {
     return (
       <div className="ocean-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="glass" style={{ padding: 32, maxWidth: 420, textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>🌊</div>
+          <div style={{ fontSize: 40, marginBottom: 16, color: 'var(--color-secondary)' }}><Waves size={40} strokeWidth={1.2} /></div>
           <div style={{ fontSize: 16, color: 'var(--score-low)', marginBottom: 8 }}>The ocean is rough</div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>{error}</div>
           <button className="btn-ocean" onClick={() => { clearSession(); navigate('/') }}>
@@ -110,7 +111,7 @@ export default function ResultsPage() {
     return (
       <div className="ocean-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }} className="animate-float">🌊</div>
+          <div style={{ marginBottom: 12, color: 'var(--color-secondary)' }} className="animate-float"><Waves size={40} strokeWidth={1.2} /></div>
           <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>No dive data found.</div>
           <button className="btn-ocean" style={{ marginTop: 16 }} onClick={() => navigate('/')}>
             Start a Dive
@@ -155,9 +156,9 @@ export default function ResultsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={() => { clearSession(); navigate('/') }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-secondary)', display: 'flex', alignItems: 'center' }}
           >
-            🌊
+            <Waves size={20} strokeWidth={1.5} />
           </button>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -176,7 +177,7 @@ export default function ResultsPage() {
             <div style={{
               fontSize: 22,
               fontWeight: 700,
-              fontFamily: 'monospace',
+              fontFamily: 'var(--font-body)',
               color: scoreColor(avgScore),
             }}>
               {avgScore.toFixed(1)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>/10</span>
@@ -185,14 +186,14 @@ export default function ResultsPage() {
 
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>COVERAGE</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'monospace', color: 'var(--color-secondary)' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-secondary)' }}>
               {((evalResults?.mention_rate ?? 0) * 100).toFixed(0)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>%</span>
             </div>
           </div>
 
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>BLUE OCEANS</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'monospace', color: 'var(--ocean-unclaimed)' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--ocean-unclaimed)' }}>
               {blueOceanOpps.length}
             </div>
           </div>
@@ -214,7 +215,9 @@ export default function ResultsPage() {
                 boxShadow: activeTab === t ? 'var(--shadow-1)' : 'none',
               }}
             >
-              {t === 'map' ? '🗺 Map' : t === 'eval' ? '📊 Eval' : '💡 Recs'}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                {t === 'map' ? <><Map size={12} strokeWidth={2} /> Map</> : t === 'eval' ? <><BarChart3 size={12} strokeWidth={2} /> Eval</> : <><Lightbulb size={12} strokeWidth={2} /> Recs</>}
+              </span>
             </button>
           ))}
         </nav>
@@ -345,7 +348,7 @@ export default function ResultsPage() {
                         fontWeight: 700,
                         color: scoreColor(r.visibility_score),
                         flexShrink: 0,
-                        fontFamily: 'monospace',
+                        fontFamily: 'var(--font-body)',
                       }}>
                         {r.visibility_score}
                       </div>
@@ -483,7 +486,7 @@ export default function ResultsPage() {
           background: 'var(--bg-mid)',
           flexShrink: 0,
         }}>
-          {([['reclab', '🧭 Rec Lab'], ['contentlab', '🧪 Content Lab']] as const).map(([tab, label]) => (
+          {([['reclab', 'reclab'], ['contentlab', 'contentlab']] as const).map(([tab]) => (
             <button
               key={tab}
               onClick={() => setRightTab(tab)}
@@ -496,7 +499,9 @@ export default function ResultsPage() {
                 cursor: 'pointer', transition: 'all 0.15s',
               }}
             >
-              {label}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                {tab === 'reclab' ? <><Compass size={12} strokeWidth={2} /> Rec Lab</> : <><FlaskConical size={12} strokeWidth={2} /> Content Lab</>}
+              </span>
             </button>
           ))}
         </div>
@@ -559,7 +564,7 @@ function LoadingView({ progress, message }: { progress: number; message: string 
       </div>
 
       <div className="glass glow-blue" style={{ padding: '40px', maxWidth: 420, textAlign: 'center', zIndex: 1 }}>
-        <div className="animate-float" style={{ fontSize: 52, marginBottom: 16 }}>🌊</div>
+        <div className="animate-float" style={{ marginBottom: 16, color: 'var(--color-secondary)' }}><Waves size={52} strokeWidth={1.2} /></div>
         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
           Mapping the Ocean
         </div>
@@ -569,7 +574,7 @@ function LoadingView({ progress, message }: { progress: number; message: string 
         <div className="ocean-progress-track" style={{ marginBottom: 12 }}>
           <div className="ocean-progress-bar" style={{ width: `${progress}%` }} />
         </div>
-        <div style={{ fontSize: 12, color: 'var(--glow-blue)', fontFamily: 'monospace' }}>
+        <div style={{ fontSize: 12, color: 'var(--glow-blue)', fontFamily: 'var(--font-body)' }}>
           {progress}%
         </div>
         <div style={{ marginTop: 20, fontSize: 11, color: 'var(--text-dim)' }}>

@@ -1,3 +1,4 @@
+import { Waves } from 'lucide-react'
 import type { BlueOceanOpportunity } from '../../api/types'
 
 interface Props {
@@ -8,7 +9,7 @@ export default function BlueOceanPanel({ opportunities }: Props) {
   if (!opportunities.length) {
     return (
       <div className="glass-light" style={{ padding: '16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 24, marginBottom: 8 }}>🌊</div>
+        <div style={{ marginBottom: 8, color: 'var(--ocean-unclaimed)' }}><Waves size={24} strokeWidth={1.5} /></div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
           No unclaimed territories detected yet.
         </div>
@@ -24,7 +25,7 @@ export default function BlueOceanPanel({ opportunities }: Props) {
         gap: 8,
         marginBottom: 4,
       }}>
-        <span style={{ fontSize: 16 }}>🌊</span>
+        <Waves size={16} strokeWidth={1.5} style={{ color: 'var(--ocean-unclaimed)', flexShrink: 0 }} />
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ocean-unclaimed)' }}>
             Blue Ocean Territories

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Waves, FlaskConical } from 'lucide-react'
 import { useAnalysis } from '../../contexts/AnalysisContext'
 
 interface Props {
@@ -58,7 +59,7 @@ export default function ContentLab({ isOpen, onToggle, prefillText }: Props) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>🧪</span>
+          <FlaskConical size={18} strokeWidth={1.5} style={{ color: 'var(--color-secondary)', flexShrink: 0 }} />
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontSize: 13, fontWeight: 700 }}>Content Lab</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -117,7 +118,10 @@ export default function ContentLab({ isOpen, onToggle, prefillText }: Props) {
               disabled={!canSubmit}
               style={{ flex: 1 }}
             >
-              {contentLabLoading ? '🌊 Testing in the ocean…' : '🌊 Test in the Ocean'}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Waves size={14} strokeWidth={2} />
+                {contentLabLoading ? 'Testing in the ocean…' : 'Test in the Ocean'}
+              </span>
             </button>
             {(contentLabResult || text) && (
               <button className="btn-ghost" onClick={handleClear}>
@@ -217,7 +221,7 @@ function MetricCell({
       <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 4 }}>
         {label}
       </div>
-      <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: 'monospace' }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: 'var(--font-body)' }}>
         {value}
       </div>
     </div>

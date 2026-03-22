@@ -1,5 +1,19 @@
 /* ─── Fonts ──────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -45,9 +59,9 @@
   --text-accent:  var(--color-secondary);
 
   /* ── Font variables (required by tailwind.config.js) ── */
-  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono:    'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --font-display: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-body:    'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono:    'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace;
 
   /* ── Tailwind token aliases (required by tailwind.config.js) ── */
   --surface-canvas:   var(--bg-bottom);
@@ -139,12 +153,7 @@ html, body, #root {
    ============================================================ */
 
 .ocean-bg {
-  background-color: var(--bg-bottom);
-  background-image: radial-gradient(
-    ellipse 120% 60% at 10% -10%,
-    oklch(0.47 0.07 210 / 0.06) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(ellipse 140% 60% at 50% 0%, oklch(0.18 0.05 210) 0%, oklch(0.10 0.02 210) 70%);
 }
 
 /* ============================================================
@@ -214,10 +223,13 @@ html, body, #root {
 }
 
 @keyframes bubble-rise {
-  0% { transform: translateY(100vh) scale(1); opacity: 0; }
-  10% { opacity: 0.6; }
-  90% { opacity: 0.3; }
-  100% { transform: translateY(-10vh) scale(0.6); opacity: 0; }
+  0%   { transform: translateY(20vh) translateX(0px) scale(1); opacity: 0; }
+  8%   { opacity: 0.45; }
+  25%  { transform: translateY(-20vh) translateX(8px) scale(1.03); }
+  50%  { transform: translateY(-55vh) translateX(-6px) scale(0.97); }
+  75%  { transform: translateY(-80vh) translateX(10px) scale(1.02); opacity: 0.30; }
+  90%  { opacity: 0.25; }
+  100% { transform: translateY(-115vh) translateX(-4px) scale(0.55); opacity: 0; }
 }
 
 @keyframes fade-up {
@@ -403,7 +415,7 @@ html, body, #root {
    ============================================================ */
 
 .text-2xs { font-size: 10px; line-height: 1.5; letter-spacing: 0.05em; }
-.font-mono { font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; }
+.font-mono { font-family: 'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace; }
 
 .truncate-2 {
   overflow: hidden;
@@ -418,8 +430,11 @@ html, body, #root {
 .bubble {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(0, 180, 216, 0.25);
-  background: rgba(0, 180, 216, 0.04);
+  border: 1px solid rgba(100, 190, 240, 0.35);
+  background: rgba(0, 180, 216, 0.08);
+  box-shadow: 0 0 4px rgba(0, 180, 216, 0.10);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   pointer-events: none;
-  animation: bubble-rise linear infinite;
+  animation: bubble-rise 12s ease-in-out infinite;
 }

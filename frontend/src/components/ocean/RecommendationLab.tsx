@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { Waves, Target, Compass, FlaskConical } from 'lucide-react'
 import type { BlueOceanZone, PcaInterpretation, RecommendationResult } from '../../api/types'
 import { generateRecommendation } from '../../api/client'
 import { useAnalysis } from '../../contexts/AnalysisContext'
@@ -117,7 +118,7 @@ export default function RecommendationLab({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 16 }}>🧭</span>
+          <Compass size={16} strokeWidth={1.5} style={{ color: 'var(--color-secondary)', flexShrink: 0 }} />
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontSize: 13, fontWeight: 700 }}>Recommendation Lab</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -166,7 +167,9 @@ export default function RecommendationLab({
                   color: mode === m ? 'var(--color-secondary)' : 'var(--text-muted)',
                 }}
               >
-                {m === 'zones' ? '🌊 Zones' : '🎯 Pick Point'}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {m === 'zones' ? <><Waves size={11} strokeWidth={2} /> Zones</> : <><Target size={11} strokeWidth={2} /> Pick Point</>}
+                </span>
               </button>
             ))}
           </div>
@@ -201,8 +204,8 @@ export default function RecommendationLab({
                     onMouseEnter={e => (e.currentTarget.style.background = 'oklch(0.47 0.07 210 / 0.12)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'oklch(0.47 0.07 210 / 0.05)')}
                   >
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ocean-unclaimed)', marginBottom: 3 }}>
-                      🌊 Unclaimed Zone {i + 1}
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ocean-unclaimed)', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Waves size={11} strokeWidth={2} /> Unclaimed Zone {i + 1}
                     </div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                       {xDesc}{yDesc ? ` · ${yDesc}` : ''} area
@@ -232,7 +235,10 @@ export default function RecommendationLab({
                     fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
                   }}
                 >
-                  {pickPointMode ? '🎯 Click map to place…' : '🎯 Activate Picker'}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Target size={12} strokeWidth={2} />
+                    {pickPointMode ? 'Click map to place…' : 'Activate Picker'}
+                  </span>
                 </button>
 
                 {recommendationTarget && !pickPointMode && (
@@ -254,12 +260,15 @@ export default function RecommendationLab({
 
               {pickPointMode && (
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Cursor is now a crosshair. Click anywhere on the ocean to place the 🎯 target and generate recommendations.
+                  Cursor is now a crosshair. Click anywhere on the ocean to place the target and generate recommendations.
                 </div>
               )}
               {recommendationTarget && !pickPointMode && (
                 <div style={{ fontSize: 10, color: 'var(--color-accent)', letterSpacing: '0.05em' }}>
-                  🎯 Pin active at ({recommendationTarget.x.toFixed(2)}, {recommendationTarget.y.toFixed(2)})
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Target size={10} strokeWidth={2} />
+                    Pin active at ({recommendationTarget.x.toFixed(2)}, {recommendationTarget.y.toFixed(2)})
+                  </span>
                 </div>
               )}
             </div>
@@ -268,7 +277,7 @@ export default function RecommendationLab({
           {/* Loading */}
           {loading && (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
-              <div style={{ fontSize: 22, marginBottom: 8 }} className="animate-float">🧭</div>
+              <div style={{ marginBottom: 8, color: 'var(--color-secondary)' }} className="animate-float"><Compass size={22} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 12, color: 'var(--color-secondary)' }}>Charting your course…</div>
             </div>
           )}
@@ -329,7 +338,9 @@ export default function RecommendationLab({
                       boxShadow: 'var(--shadow-1)',
                     }}
                   >
-                    🧪 Send Draft to Content Lab
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <FlaskConical size={12} strokeWidth={2} /> Send Draft to Content Lab
+                    </span>
                   </button>
                 </>
               )}
