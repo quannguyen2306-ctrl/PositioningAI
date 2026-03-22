@@ -186,6 +186,7 @@ class AnalysisPipeline:
                 self.openai_client,
                 progress_callback=self.progress_callback,
             )
+            self._emit("multi_engine", {"data": self.multi_engine_results})
         else:
             self._report_progress(9, total_stages, "Skipping multi-engine test (no extra API keys)...")
 

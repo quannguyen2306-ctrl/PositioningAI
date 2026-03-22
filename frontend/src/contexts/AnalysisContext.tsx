@@ -9,6 +9,7 @@ import type {
   Recommendations,
   ProgressEvent,
   CompDoc,
+  MultiEngineResult,
 } from '../api/types'
 import useSessionStorage from '../hooks/useSessionStorage'
 import type { SessionRecord } from '../hooks/useSessionStorage'
@@ -71,6 +72,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       pca_meta?: Array<{ source: string; url: string; domain: string }>
       interps?: PcaInterpretation[]
       recs?: Recommendations
+      multi_engine?: MultiEngineResult
     } = {}
 
     const abort = streamAnalysis(req, {
@@ -103,6 +105,10 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         acc.recs = recs
       },
 
+      onMultiEngine: (data) => {
+        acc.multi_engine = data
+      },
+
       onComplete: () => {
         setProgress({ percent: 100, message: 'Analysis complete!', status: 'completed' })
         if (acc.biz && acc.eval && acc.coords && acc.recs) {
@@ -114,6 +120,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
             pca_meta: acc.pca_meta ?? [],
             interps: acc.interps ?? [],
             recs: acc.recs,
+            multi_engine: acc.multi_engine,
           }
           setResults(result)
           saveSession(sid, req.url, acc.eval.avg_visibility_score, result)

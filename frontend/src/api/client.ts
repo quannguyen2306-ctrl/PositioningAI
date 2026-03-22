@@ -5,6 +5,7 @@ import type {
   PcaInterpretation,
   Recommendations,
   CompDoc,
+  MultiEngineResult,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
@@ -26,6 +27,7 @@ export interface SseCallbacks {
   onEval: (evalData: EvalSummary) => void
   onPca: (points: PcaPoint[], interpretations: PcaInterpretation[]) => void
   onRecommendations: (recs: Recommendations) => void
+  onMultiEngine: (data: MultiEngineResult) => void
   onComplete: () => void
   onError: (msg: string) => void
 }
@@ -35,11 +37,14 @@ export interface SseCallbacks {
 export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): () => void {
   const params = new URLSearchParams({
     url: req.url,
-    n_competitors: String(req.n_competitors),
-    n_questions: String(req.n_questions),
     openai_key: req.openai_key,
     serper_key: req.serper_key,
+    n_competitors: String(req.n_competitors),
+    n_questions: String(req.n_questions),
     custom_questions: (req.custom_questions ?? []).join('||'),
+    google_key: req.google_key ?? '',
+    anthropic_key: req.anthropic_key ?? '',
+    perplexity_key: req.perplexity_key ?? '',
   })
 
   const controller = new AbortController()
@@ -122,6 +127,9 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
                 break
               case 'recommendations':
                 callbacks.onRecommendations(payload.recs as Recommendations)
+                break
+              case 'multi_engine':
+                callbacks.onMultiEngine(payload.data as MultiEngineResult)
                 break
               case 'complete':
                 callbacks.onComplete()
