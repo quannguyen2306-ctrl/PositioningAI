@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useState } from 'react'
 import { useAnalysis } from '../contexts/AnalysisContext'
-import { useWebSocket } from '../hooks/useWebSocket'
 import { ProgressBar } from '../components/ProgressBar'
 import { BusinessCard } from '../components/results/BusinessCard'
 import { EvaluationTable } from '../components/results/EvaluationTable'
@@ -10,25 +8,10 @@ import { RecommendationsList } from '../components/results/RecommendationsList'
 import { MultiEngineComparison } from '../components/results/MultiEngineComparison'
 
 export function ResultsPage() {
-  const { sessionId: paramSessionId } = useParams<{ sessionId: string }>()
-  const { sessionId, results, progress, error, setProgress, setResults, setError } = useAnalysis()
+  const { results, progress, error } = useAnalysis()
   const [activeTab, setActiveTab] = useState<'evaluation' | 'business' | 'recommendations' | 'engines'>('evaluation')
 
-  const effectiveSessionId = paramSessionId || sessionId
   const isLoading = !results && progress?.status !== 'completed'
-
-  useWebSocket(
-    effectiveSessionId || null,
-    (event) => setProgress(event),
-    (result) => setResults(result),
-    (message) => setError(message)
-  )
-
-  useEffect(() => {
-    if (paramSessionId && !sessionId) {
-      console.log('Session ID from URL:', paramSessionId)
-    }
-  }, [paramSessionId, sessionId])
 
   if (!results && isLoading && progress) {
     return (

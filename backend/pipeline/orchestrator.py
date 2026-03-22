@@ -39,6 +39,7 @@ class AnalysisPipeline:
         n_questions: int = 10,
         custom_questions: list[str] | None = None,
         progress_callback=None,
+        result_callback=None,
         google_api_key: str = "",
         anthropic_api_key: str = "",
         perplexity_api_key: str = "",
@@ -51,6 +52,7 @@ class AnalysisPipeline:
         self.n_questions = n_questions
         self.custom_questions = custom_questions
         self.progress_callback = progress_callback
+        self.result_callback = result_callback
 
         # Multi-engine API keys
         self.google_api_key = google_api_key
@@ -77,6 +79,11 @@ class AnalysisPipeline:
             percent = int((stage / total_stages) * 100)
             self.progress_callback(percent, message)
 
+    def _report_result(self, event: str, payload: dict):
+        """Helper to call result callback with intermediate results."""
+        if self.result_callback:
+            self.result_callback(event, payload)
+
     def run(self) -> dict:
         """
         Execute the full 9-stage pipeline.
@@ -91,6 +98,7 @@ class AnalysisPipeline:
         # --- Stage 2: Extract business context ---
         self._report_progress(2, total_stages, "Extracting business information...")
         self.business_context = extract_business_context(self.user_text, self.openai_client)
+        self._report_result("profile", {"data": self.business_context})
 
         # --- Stage 3: Search for competitors ---
         self._report_progress(3, total_stages, "Searching for competitors...")
@@ -100,6 +108,7 @@ class AnalysisPipeline:
             self.serper_api_key,
             n=self.n_competitors,
         )
+        self._report_result("competitors", {"competitors": competitor_urls})
 
         # --- Stage 4: Fetch competitor documents ---
         self._report_progress(4, total_stages, f"Fetching {len(competitor_urls)} competitor websites...")
@@ -141,6 +150,7 @@ class AnalysisPipeline:
         )
         # Limit to requested number
         test_questions = test_questions[:self.n_questions]
+        self._report_result("questions", {"questions": test_questions})
 
         # --- Stage 8: Run RAG evaluation ---
         self._report_progress(8, total_stages, "Evaluating visibility in AI responses...")
@@ -151,6 +161,7 @@ class AnalysisPipeline:
             self.business_context.get("business_name", "Your Business"),
             progress_callback=None,  # Sub-progress handled internally
         )
+        self._report_result("eval", {"eval": self.eval_results})
 
         # --- Stage 9: Multi-engine evaluation ---
         api_keys = {
@@ -186,6 +197,21 @@ class AnalysisPipeline:
             n_samples=5,
         )
 
+        # Emit PCA results
+        pca_points = [
+            {
+                "components": self.coords[i].tolist(),
+                "source": m["source"],
+                "domain": m["domain"],
+                "text": m.get("text", "")[:200],
+            }
+            for i, m in enumerate(metadata)
+        ]
+        self._report_result("pca", {
+            "points": pca_points,
+            "interpretations": self.interpretations,
+        })
+
         self.plot_2d_fig = plot_2d(
             self.coords,
             metadata,
@@ -207,6 +233,7 @@ class AnalysisPipeline:
             self.competitor_docs,
             self.openai_client,
         )
+        self._report_result("recommendations", {"recs": self.recommendations})
 
         return self._compile_results()
 
