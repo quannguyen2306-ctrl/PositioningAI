@@ -13,6 +13,10 @@ export function HomePage() {
   const [nCompetitors, setNCompetitors] = useState(10)
   const [nQuestions, setNQuestions] = useState(10)
   const [customQuestions, setCustomQuestions] = useState('')
+  const [googleKey, setGoogleKey] = useState('')
+  const [anthropicKey, setAnthropicKey] = useState('')
+  const [perplexityKey, setPerplexityKey] = useState('')
+  const [showEngineKeys, setShowEngineKeys] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,6 +39,9 @@ export function HomePage() {
         url: url.trim(),
         openai_key: openaiKey.trim(),
         serper_key: serperKey.trim(),
+        google_key: googleKey.trim() || undefined,
+        anthropic_key: anthropicKey.trim() || undefined,
+        perplexity_key: perplexityKey.trim() || undefined,
         n_competitors: nCompetitors,
         n_questions: nQuestions,
         custom_questions: customQuestionsArray.length > 0 ? customQuestionsArray : undefined,
@@ -246,6 +253,83 @@ export function HomePage() {
                 5 - 15
               </div>
             </div>
+          </div>
+
+          {/* Multi-AI Engine Keys (Optional) */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowEngineKeys(!showEngineKeys)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#8b949e',
+                textTransform: 'uppercase',
+                backgroundColor: '#161b22',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <span>{showEngineKeys ? '−' : '+'}</span>
+              Multi-AI Engine Keys (Optional)
+              <span style={{ fontSize: '10px', fontWeight: 'normal', textTransform: 'none', marginLeft: 'auto' }}>
+                Test across ChatGPT, Claude, Gemini, Perplexity
+              </span>
+            </button>
+
+            {showEngineKeys && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', paddingLeft: '12px', borderLeft: '2px solid #30363d' }}>
+                <div>
+                  <label htmlFor="anthropicKey" style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8b949e', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Anthropic API Key (Claude)
+                  </label>
+                  <input
+                    id="anthropicKey"
+                    type="password"
+                    placeholder="sk-ant-..."
+                    value={anthropicKey}
+                    onChange={e => setAnthropicKey(e.target.value)}
+                    style={{ width: '100%', padding: '10px 14px', fontSize: '14px', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#c9d1d9', boxSizing: 'border-box' }}
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="googleKey" style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8b949e', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Google API Key (Gemini)
+                  </label>
+                  <input
+                    id="googleKey"
+                    type="password"
+                    placeholder="AIza..."
+                    value={googleKey}
+                    onChange={e => setGoogleKey(e.target.value)}
+                    style={{ width: '100%', padding: '10px 14px', fontSize: '14px', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#c9d1d9', boxSizing: 'border-box' }}
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="perplexityKey" style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8b949e', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Perplexity API Key
+                  </label>
+                  <input
+                    id="perplexityKey"
+                    type="password"
+                    placeholder="pplx-..."
+                    value={perplexityKey}
+                    onChange={e => setPerplexityKey(e.target.value)}
+                    style={{ width: '100%', padding: '10px 14px', fontSize: '14px', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#c9d1d9', boxSizing: 'border-box' }}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Custom Questions */}

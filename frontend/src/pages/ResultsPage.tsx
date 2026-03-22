@@ -7,11 +7,12 @@ import { BusinessCard } from '../components/results/BusinessCard'
 import { EvaluationTable } from '../components/results/EvaluationTable'
 import { PCAViz } from '../components/results/PCAViz'
 import { RecommendationsList } from '../components/results/RecommendationsList'
+import { MultiEngineComparison } from '../components/results/MultiEngineComparison'
 
 export function ResultsPage() {
   const { sessionId: paramSessionId } = useParams<{ sessionId: string }>()
   const { sessionId, results, progress, error, setProgress, setResults, setError } = useAnalysis()
-  const [activeTab, setActiveTab] = useState<'evaluation' | 'business' | 'recommendations'>('evaluation')
+  const [activeTab, setActiveTab] = useState<'evaluation' | 'business' | 'recommendations' | 'engines'>('evaluation')
 
   const effectiveSessionId = paramSessionId || sessionId
   const isLoading = !results && progress?.status !== 'completed'
@@ -159,6 +160,7 @@ export function ResultsPage() {
         <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #21262d', marginBottom: '20px', paddingTop: '16px' }}>
           {[
             { id: 'evaluation' as const, label: 'AI Visibility Tests' },
+            ...(results.multi_engine ? [{ id: 'engines' as const, label: 'AI Engine Comparison' }] : []),
             { id: 'business' as const, label: 'Business Profile' },
             { id: 'recommendations' as const, label: 'Recommendations' },
           ].map(tab => (
@@ -184,6 +186,7 @@ export function ResultsPage() {
         <div style={{ paddingBottom: '40px' }}>
           {activeTab === 'business' && <BusinessCard business={results.biz} competitors={results.comp_docs} />}
           {activeTab === 'evaluation' && <EvaluationTable evalData={results.eval} />}
+          {activeTab === 'engines' && results.multi_engine && <MultiEngineComparison data={results.multi_engine} />}
           {activeTab === 'recommendations' && <RecommendationsList recs={results.recs} />}
         </div>
       </div>
