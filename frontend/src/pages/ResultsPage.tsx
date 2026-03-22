@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye } from 'lucide-react'
+import { Eye, Cpu } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import type { SessionRecord } from '../contexts/AnalysisContext'
 import { DashHeader } from '../components/dashboard/DashHeader'
@@ -11,6 +11,7 @@ import { HistoryPanel } from '../components/dashboard/panels/HistoryPanel'
 import { EvaluationTable } from '../components/results/EvaluationTable'
 import { PCAViz } from '../components/results/PCAViz'
 import { RecommendationsList } from '../components/results/RecommendationsList'
+import { MultiEngineComparison } from '../components/results/MultiEngineComparison'
 import type { NavSection } from '../components/dashboard/Sidebar'
 
 export function ResultsPage() {
@@ -116,6 +117,7 @@ export function ResultsPage() {
           }}
           testCount={results.eval.total_questions}
           historyCount={sessionHistory.length}
+          hasEngines={!!results.multi_engine}
           mobileOpen={sidebarOpen}
           onMobileClose={() => setSidebarOpen(false)}
         />
@@ -149,6 +151,18 @@ export function ResultsPage() {
             )}
             {activeSection === 'recommendations' && (
               <RecommendationsList recs={results.recs} />
+            )}
+            {activeSection === 'engines' && (
+              results.multi_engine
+                ? <MultiEngineComparison data={results.multi_engine} />
+                : (
+                  <div className="card p-8 text-center">
+                    <Cpu size={32} className="text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+                    <p className="text-text-secondary text-sm">
+                      No multi-engine data available. Provide Anthropic, Google, or Perplexity API keys to enable cross-engine comparison.
+                    </p>
+                  </div>
+                )
             )}
             {activeSection === 'settings' && <SettingsPanel />}
             {activeSection === 'history' && (

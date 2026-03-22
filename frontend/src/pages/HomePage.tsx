@@ -14,6 +14,9 @@ export function HomePage() {
   const [nCompetitors, setNCompetitors] = useState(10)
   const [nQuestions, setNQuestions] = useState(10)
   const [customQuestions, setCustomQuestions] = useState('')
+  const [googleKey, setGoogleKey] = useState('')
+  const [anthropicKey, setAnthropicKey] = useState('')
+  const [perplexityKey, setPerplexityKey] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showOpenaiKey, setShowOpenaiKey] = useState(false)
@@ -39,6 +42,9 @@ export function HomePage() {
         url: url.trim(),
         openai_key: openaiKey.trim(),
         serper_key: serperKey.trim(),
+        google_key: googleKey.trim() || undefined,
+        anthropic_key: anthropicKey.trim() || undefined,
+        perplexity_key: perplexityKey.trim() || undefined,
         n_competitors: nCompetitors,
         n_questions: nQuestions,
         custom_questions: customQuestionsArray.length > 0 ? customQuestionsArray : undefined,
@@ -94,7 +100,7 @@ export function HomePage() {
           {/* Divider */}
           <div className="border-t border-subtle" />
 
-          {/* API Keys Section */}
+          {/* Required API Keys */}
           <div className="space-y-5">
             {/* OpenAI Key */}
             <div>
@@ -179,7 +185,7 @@ export function HomePage() {
             {/* Collapsible Content */}
             <div
               className={`advanced-settings ${showAdvanced ? 'open' : ''}`}
-              style={{ overflow: 'hidden', maxHeight: showAdvanced ? '500px' : '0' }}
+              style={{ overflow: 'hidden', maxHeight: showAdvanced ? '900px' : '0' }}
             >
               <div className="pt-4 space-y-6">
                 {/* Sliders Grid */}
@@ -236,6 +242,60 @@ export function HomePage() {
                     disabled={loading}
                     className="input-base min-h-[100px] font-mono text-sm resize-none"
                   />
+                </div>
+
+                {/* Multi-AI Engine Keys (Optional) */}
+                <div className="border-t border-subtle pt-4">
+                  <p className="input-label mb-4">
+                    Multi-AI Engine Keys{' '}
+                    <span className="text-text-muted font-normal normal-case tracking-normal">
+                      — Optional. Test across ChatGPT, Claude, Gemini &amp; Perplexity.
+                    </span>
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="anthropicKey" className="input-label">
+                        Anthropic API Key (Claude)
+                      </label>
+                      <input
+                        id="anthropicKey"
+                        type="password"
+                        placeholder="sk-ant-..."
+                        value={anthropicKey}
+                        onChange={e => setAnthropicKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="googleKey" className="input-label">
+                        Google API Key (Gemini)
+                      </label>
+                      <input
+                        id="googleKey"
+                        type="password"
+                        placeholder="AIza..."
+                        value={googleKey}
+                        onChange={e => setGoogleKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="perplexityKey" className="input-label">
+                        Perplexity API Key
+                      </label>
+                      <input
+                        id="perplexityKey"
+                        type="password"
+                        placeholder="pplx-..."
+                        value={perplexityKey}
+                        onChange={e => setPerplexityKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -2,6 +2,9 @@ export interface AnalysisRequest {
   url: string;
   openai_key: string;
   serper_key: string;
+  google_key?: string;
+  anthropic_key?: string;
+  perplexity_key?: string;
   n_competitors: number;
   n_questions: number;
   custom_questions?: string[];
@@ -82,6 +85,31 @@ export interface CompDoc {
   text: string;
 }
 
+export interface EngineQuestionResult {
+  question: string;
+  answer: string;
+  visibility_score: number;
+  business_mentioned: boolean;
+  mention_quality: 'prominent' | 'brief' | 'absent';
+  key_observation: string;
+}
+
+export interface EngineResult {
+  engine: string;
+  available: boolean;
+  results: EngineQuestionResult[];
+  avg_visibility_score: number;
+  mention_rate: number;
+}
+
+export interface MultiEngineResult {
+  engines: EngineResult[];
+  comparison_summary: string;
+  best_engine: string;
+  worst_engine: string;
+  cross_engine_avg: number;
+}
+
 export interface AnalysisResult {
   biz: BusinessProfile;
   comp_docs: CompDoc[];
@@ -90,6 +118,7 @@ export interface AnalysisResult {
   pca_meta: PcaMeta[];
   interps: PcaInterpretation[];
   recs: Recommendations;
+  multi_engine?: MultiEngineResult;
 }
 
 export interface ProgressEvent {
