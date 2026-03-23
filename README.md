@@ -1,6 +1,10 @@
-# LLM Visibility Diagnostic
+# PositioningAI — LLM Visibility Diagnostic
 
 > See exactly how AI assistants represent your business — and get a concrete plan to fix it.
+
+![PositioningAI](assets/thumbnail.png)
+
+---
 
 ## What it does
 
@@ -16,56 +20,93 @@
 
 ## Quick start
 
-### 1. Install dependencies
+### 1. Backend (FastAPI)
 
 ```bash
+cd backend
 pip install -r requirements.txt
+python app.py
+# → http://localhost:8000
 ```
 
-### 2. Set API keys
+### 2. Frontend (React)
 
 ```bash
-cp .env.example .env
-# Edit .env and add your keys
+cd frontend
+npm install
+npm run dev
+# → http://localhost:5173
 ```
+
+API keys (OpenAI + Serper) are entered in the UI per request — never stored server-side.
 
 You need:
 - **OpenAI API key** — for embeddings (`text-embedding-3-small`) and all LLM calls
 - **Serper API key** — for live Google search to find competitors ([free tier at serper.dev](https://serper.dev))
-
-### 3. Run
-
-```bash
-streamlit run app.py
-```
 
 ---
 
 ## Architecture
 
 ```
-User URL
+User URL + API keys (submitted via UI)
    │
    ▼
-pipeline/ingestion.py       ← scrape + chunk + extract business context (GPT-4o-mini)
+backend/pipeline/ingestion.py       ← scrape + chunk + extract business context (GPT-4o-mini)
    │
    ▼
-pipeline/retrieval.py       ← Serper search → scrape competitor pages
+backend/pipeline/retrieval.py       ← Serper search → scrape competitor pages
    │
    ▼
-pipeline/embeddings.py      ← embed all chunks → ChromaDB (cosine similarity)
+backend/pipeline/embeddings.py      ← embed all chunks → ChromaDB (cosine similarity)
    │
    ▼
-pipeline/rag_evaluator.py   ← per-question: retrieve top-k → LLM answer → visibility score
+backend/pipeline/rag_evaluator.py   ← per-question: retrieve top-k → LLM answer → visibility score
    │
    ▼
-pipeline/pca_visualizer.py  ← PCA on all embeddings → 2D/3D Plotly → LLM axis labelling
+backend/pipeline/pca_visualizer.py  ← PCA on all embeddings → 2D/3D Plotly → LLM axis labelling
    │
    ▼
-pipeline/recommender.py     ← GPT-4o synthesises everything → structured action plan
+backend/pipeline/recommender.py     ← GPT-4o synthesises everything → structured action plan
    │
    ▼
-app.py (Streamlit)          ← UI tying all stages together with progress + 4-tab results
+FastAPI (backend/app.py)            ← REST + WebSocket API
+React + Vite (frontend/)            ← UI with real-time progress via WebSocket
+```
+
+### API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Readiness check |
+| `POST` | `/api/analysis/start` | Start analysis, returns `session_id` |
+| `GET` | `/api/analysis/{session_id}` | Poll status + result |
+| `WebSocket` | `/ws/analysis/{session_id}` | Stream real-time progress |
+
+---
+
+## Project structure
+
+```
+PositioningAI/
+├── backend/
+│   ├── app.py                  # FastAPI server entry point
+│   ├── requirements.txt
+│   ├── cache/
+│   │   └── session_store.py    # Thread-safe in-memory session store
+│   └── pipeline/
+│       ├── orchestrator.py     # Runs all 7 stages in sequence
+│       ├── ingestion.py        # URL fetch, chunking, business context extraction
+│       ├── retrieval.py        # Serper API + competitor scraping
+│       ├── embeddings.py       # OpenAI embeddings + ChromaDB
+│       ├── rag_evaluator.py    # RAG simulation + per-question visibility scoring
+│       ├── pca_visualizer.py   # PCA fit, semantic axis labelling, 2D + 3D Plotly
+│       └── recommender.py      # Gap analysis + GPT-4o recommendation generation
+├── frontend/
+│   ├── src/                    # React 18 + TypeScript app
+│   └── vite.config.ts          # Proxies /api and /ws to :8000
+├── pipeline/                   # Legacy Streamlit pipeline (reference only)
+└── app.py                      # Legacy Streamlit app (reference only)
 ```
 
 ---
@@ -83,27 +124,8 @@ app.py (Streamlit)          ← UI tying all stages together with progress + 4-t
 
 ## Extending the project
 
-- **Add re-analysis after fixes** — let the user paste improved content and re-run to see if the star moves closer to the competitor cluster
-- **Add schema markup generator** — auto-generate JSON-LD for the user's business type
-- **Multi-language support** — test visibility in French (critical for Canadian francophone communities)
-- **Export report as PDF** — use the `pdf` skill to package findings
+- **Re-analysis after fixes** — let the user paste improved content and re-run to see if their position shifts
+- **Schema markup generator** — auto-generate JSON-LD for the user's business type
+- **Multi-language support** — test visibility in French (critical for Canadian francophone audiences)
+- **Export report as PDF** — package findings into a shareable document
 - **Track over time** — store results in SQLite to show visibility trends week-over-week
-
----
-
-## File structure
-
-```
-llm-visibility/
-├── app.py                  # Streamlit UI
-├── requirements.txt
-├── .env.example
-└── pipeline/
-    ├── __init__.py
-    ├── ingestion.py        # URL fetch, chunking, business context extraction
-    ├── retrieval.py        # Serper API + competitor scraping
-    ├── embeddings.py       # OpenAI embeddings + ChromaDB
-    ├── rag_evaluator.py    # RAG simulation + per-question visibility scoring
-    ├── pca_visualizer.py   # PCA fit, semantic axis labelling, 2D + 3D Plotly
-    └── recommender.py      # Gap analysis + GPT-4o recommendation generation
-```
