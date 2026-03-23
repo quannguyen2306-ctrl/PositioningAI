@@ -30,6 +30,7 @@ export interface EvalResult {
   key_observation: string;
   user_chunk_count: number;
   comp_chunk_count: number;
+  is_blue_ocean?: boolean;
 }
 
 export interface EvalSummary {
@@ -39,12 +40,20 @@ export interface EvalSummary {
   total_questions: number;
   score_breakdown: { 'high (8-10)': number; 'medium (5-7)': number; 'low (0-4)': number };
   top_competitor_domains: string[];
+  blue_ocean_opportunities?: BlueOceanOpportunity[];
 }
 
 export interface PcaMeta {
   source: string;
   url: string;
   domain: string;
+}
+
+export interface PcaPoint {
+  components: number[];
+  source: string;
+  domain: string;
+  text: string;
 }
 
 export interface PcaInterpretation {
@@ -133,6 +142,11 @@ export interface AnalysisResponse {
   result?: AnalysisResult;
   progress?: ProgressEvent;
   error?: string;
+}
+
+export interface RecommendationResult {
+  recommendations: string[]
+  content_draft: string
 }
 
 export type WsEvent =

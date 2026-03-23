@@ -144,6 +144,30 @@ class EmbeddingStore:
 
         return output
 
+    def replace_user_chunks(
+        self,
+        chunks: list[str],
+        source: str = "user",
+        url: str = "content-lab",
+        domain: str = "",
+    ) -> None:
+        """
+        Remove all existing user chunks and replace with new ones.
+        Used by the Content Lab to test new content without re-running the full pipeline.
+        """
+        # Delete user docs from ChromaDB
+        try:
+            self.collection.delete(where={"source": "user"})
+        except Exception:
+            pass
+
+        # Remove from internal list
+        self._all_chunks = [c for c in self._all_chunks if c["source"] != "user"]
+
+        # Add new user chunks
+        if chunks:
+            self.store(chunks, source=source, url=url, domain=domain)
+
     def get_all_for_pca(self) -> tuple[np.ndarray, list[dict]]:
         """
         Returns:

@@ -56,6 +56,18 @@ class SessionStore:
                 self._sessions[session_id]["error"] = error
                 self._sessions[session_id]["status"] = "failed"
 
+    def set_pipeline_data(self, session_id: str, pipeline_data: dict) -> None:
+        """Store pipeline runtime objects for Content Lab reuse (store, pca, etc.)."""
+        with self._lock:
+            if session_id in self._sessions:
+                self._sessions[session_id]["pipeline_data"] = pipeline_data
+
+    def get_pipeline_data(self, session_id: str) -> Optional[dict]:
+        """Retrieve pipeline runtime objects for Content Lab."""
+        with self._lock:
+            session = self._sessions.get(session_id)
+            return session.get("pipeline_data") if session else None
+
     def get_session(self, session_id: str) -> Optional[dict]:
         """Get session data by ID."""
         with self._lock:

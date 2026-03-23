@@ -20,3 +20,22 @@ class AnalysisRequest(BaseModel):
     n_competitors: int = Field(default=10, ge=5, le=20)
     n_questions: int = Field(default=10, ge=5, le=15)
     custom_questions: Optional[list[str]] = None
+
+
+class ContentLabRequest(BaseModel):
+    """Request to re-evaluate new content in an existing session."""
+
+    session_id: str
+    new_content: str
+    openai_key: str
+
+
+class RecommendationRequest(BaseModel):
+    """Request to generate targeted content recommendations toward a map position."""
+
+    session_id: str
+    target_x: float
+    target_y: float
+    current_x: float   # user's current centroid X (PCA data coords)
+    current_y: float   # user's current centroid Y (PCA data coords)
+    openai_key: str

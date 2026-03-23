@@ -1,17 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, ChevronDown } from 'lucide-react'
+import { Eye, EyeOff, ArrowRight, Waves } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import type { AnalysisRequest } from '../api/types'
 
-export function HomePage() {
+const BUBBLES = Array.from({ length: 18 }, (_, i) => ({
+  id: i,
+  left: `${5 + (i * 5.3) % 90}%`,
+  size: 6 + (i * 7) % 28,
+  duration: 9 + (i * 3.7) % 16,
+  delay: (i * 1.3) % 10,
+  borderRadius: `${50 + (i * 3) % 12}% ${50 - (i * 2) % 8}% ${50 + (i * 4) % 10}% ${50 - (i * 3) % 6}%`,
+}))
+
+export default function HomePage() {
   const navigate = useNavigate()
-  const { startAnalysis } = useAnalysis()
+  const { startAnalysis, sessionHistory, restoreSession } = useAnalysis()
 
   const [url, setUrl] = useState('')
   const [openaiKey, setOpenaiKey] = useState('')
   const [serperKey, setSerperKey] = useState('')
-  const [nCompetitors, setNCompetitors] = useState(10)
+  const [showOpenai, setShowOpenai] = useState(false)
+  const [showSerper, setShowSerper] = useState(false)
+  const [nCompetitors, setNCompetitors] = useState(8)
   const [nQuestions, setNQuestions] = useState(10)
   const [customQuestions, setCustomQuestions] = useState('')
   const [googleKey, setGoogleKey] = useState('')
@@ -19,15 +30,22 @@ export function HomePage() {
   const [perplexityKey, setPerplexityKey] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false)
-  const [showSerperKey, setShowSerperKey] = useState(false)
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
-  const isFormValid = url.trim() && openaiKey.trim() && serperKey.trim()
+  useEffect(() => {
+    const sk = localStorage.getItem('serper_key') ?? ''
+    const ok = localStorage.getItem('openai_key') ?? ''
+    if (sk) setSerperKey(sk)
+    if (ok) setOpenaiKey(ok)
+  }, [])
+
+  const canSubmit = url.trim() && openaiKey.trim() && serperKey.trim() && !loading
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isFormValid) return
+    if (!canSubmit) return
+
+    localStorage.setItem('openai_key', openaiKey)
+    localStorage.setItem('serper_key', serperKey)
 
     setLoading(true)
     setError(null)
@@ -50,32 +68,71 @@ export function HomePage() {
         custom_questions: customQuestionsArray.length > 0 ? customQuestionsArray : undefined,
       }
 
-      const sessionId = await startAnalysis(req)
-      navigate(`/results/${sessionId}`)
+    try {
+      const sid = await startAnalysis(req)
+      navigate(`/results/${sid}`)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to start analysis'
-      setError(message)
-    } finally {
+      setError(err instanceof Error ? err.message : String(err))
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-base text-text-primary flex items-center justify-center px-5 py-12">
-      <div className="w-full max-w-2xl">
-        {/* Header with Icon */}
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 bg-accent rounded-full blur-2xl opacity-30 animate-pulse" />
-              <Eye size={48} className="text-accent relative z-10" strokeWidth={1.5} />
-            </div>
+    <div className="ocean-bg min-h-screen flex items-center justify-center px-6 py-6 relative overflow-hidden">
+      {/* Animated bubbles */}
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+        {BUBBLES.map(b => (
+          <div
+            key={b.id}
+            className="bubble"
+            style={{
+              left: b.left,
+              bottom: 0,
+              width: b.size,
+              height: b.size,
+              animationDuration: `${b.duration}s`,
+              animationDelay: `${b.delay}s`,
+              borderRadius: b.borderRadius,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Light ray */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '55%',
+        background: 'linear-gradient(180deg, oklch(0.47 0.07 210 / 0.10) 0%, transparent 100%)',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }} />
+
+      <div className="relative w-full max-w-[560px]" style={{ zIndex: 1 }}>
+        {/* Hero */}
+        <div className="text-center mb-9">
+          <div className="animate-float inline-block mb-3" style={{ color: 'var(--color-secondary)' }}>
+            <Waves size={52} strokeWidth={1.2} />
           </div>
-          <h1 className="font-display text-4xl font-bold mb-3 text-text-primary">
-            LLM Visibility Diagnostic
+          <h1 style={{
+            fontSize: 44,
+            fontWeight: 700,
+            margin: '0 0 8px',
+            background: 'linear-gradient(135deg, var(--color-text) 0%, var(--color-secondary) 50%, var(--color-primary) 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            lineHeight: 1.1,
+          }}>
+            One Piece
           </h1>
-          <p className="text-lg text-text-muted">
-            See how AI sees your business — and what to fix.
+          <p className="text-[16px] mb-1" style={{ color: 'var(--text-secondary)' }}>
+            AI Visibility Intelligence
+          </p>
+          <p className="text-[13px] m-0" style={{ color: 'var(--text-muted)' }}>
+            Discover your territory in the AI ocean — and claim the unclaimed
           </p>
         </div>
 
@@ -107,79 +164,85 @@ export function HomePage() {
               <label htmlFor="openaiKey" className="input-label">
                 OpenAI API Key
               </label>
-              <div className="relative">
-                <input
-                  id="openaiKey"
-                  type={showOpenaiKey ? 'text' : 'password'}
-                  placeholder="sk-..."
-                  value={openaiKey}
-                  onChange={e => setOpenaiKey(e.target.value)}
-                  disabled={loading}
-                  className="input-base pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                  disabled={loading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40"
-                  aria-label={showOpenaiKey ? 'Hide OpenAI key' : 'Show OpenAI key'}
-                >
-                  {showOpenaiKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              <input
+                className="ocean-input"
+                type="url"
+                placeholder="https://yourbusiness.com"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                  OPENAI KEY
+                </label>
+                <div className="relative">
+                  <input
+                    className="ocean-input"
+                    type={showOpenai ? 'text' : 'password'}
+                    placeholder="sk-…"
+                    value={openaiKey}
+                    onChange={e => setOpenaiKey(e.target.value)}
+                    style={{ paddingRight: 36 }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOpenai(v => !v)}
+                    aria-label={showOpenai ? 'Hide OpenAI key' : 'Show OpenAI key'}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer flex items-center"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {showOpenai ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                  SERPER KEY
+                </label>
+                <div className="relative">
+                  <input
+                    className="ocean-input"
+                    type={showSerper ? 'text' : 'password'}
+                    placeholder="your key"
+                    value={serperKey}
+                    onChange={e => setSerperKey(e.target.value)}
+                    style={{ paddingRight: 36 }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSerper(v => !v)}
+                    aria-label={showSerper ? 'Hide Serper key' : 'Show Serper key'}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer flex items-center"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {showSerper ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Serper Key */}
-            <div>
-              <label htmlFor="serperKey" className="input-label">
-                Serper API Key{' '}
-                <a
-                  href="https://serper.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent-light hover:text-accent text-xs font-normal"
-                >
-                  (Free at serper.dev)
-                </a>
-              </label>
-              <div className="relative">
-                <input
-                  id="serperKey"
-                  type={showSerperKey ? 'text' : 'password'}
-                  placeholder="..."
-                  value={serperKey}
-                  onChange={e => setSerperKey(e.target.value)}
-                  disabled={loading}
-                  className="input-base pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSerperKey(!showSerperKey)}
-                  disabled={loading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors disabled:opacity-40"
-                  aria-label={showSerperKey ? 'Hide Serper key' : 'Show Serper key'}
-                >
-                  {showSerperKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Advanced Settings Collapsible */}
-          <div className="border-t border-subtle pt-4">
             <button
               type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              disabled={loading}
-              className="w-full flex items-center justify-between text-text-secondary hover:text-text-primary transition-colors disabled:opacity-40 py-2"
+              onClick={() => setAdvanced(v => !v)}
+              aria-expanded={advanced}
+              aria-label={advanced ? 'Collapse advanced settings' : 'Expand advanced settings'}
+              className="w-full flex justify-between items-center py-2 bg-transparent border-none cursor-pointer text-[11px] tracking-wide"
+              style={{
+                color: 'var(--text-muted)',
+                marginBottom: advanced ? 12 : 20,
+                borderTop: '1px solid oklch(0.52 0.07 230 / 0.12)',
+                paddingTop: 8,
+              }}
             >
-              <span className="font-display font-semibold text-sm uppercase tracking-widest">
-                Advanced Settings
-              </span>
-              <ChevronDown
-                size={18}
-                className={`transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`}
-              />
+              <span>ADVANCED SETTINGS</span>
+              <span style={{ transform: advanced ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
             </button>
 
             {/* Collapsible Content */}
@@ -228,19 +291,24 @@ export function HomePage() {
                     <div className="text-xs text-text-muted mt-2">5 – 15 questions</div>
                   </div>
                 </div>
-
-                {/* Custom Questions */}
                 <div>
-                  <label htmlFor="customQuestions" className="input-label">
-                    Custom Questions (Optional)
+                  <label className="flex justify-between text-[10px] tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
+                    <span>TEST QUESTIONS</span>
+                    <span style={{ color: 'var(--color-primary)' }}>{nQuestions}</span>
+                  </label>
+                  <input type="range" min={5} max={15} value={nQuestions} onChange={e => setNQuestions(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
+                </div>
+                <div>
+                  <label className="block text-[10px] tracking-wide mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                    CUSTOM QUESTIONS (optional, one per line)
                   </label>
                   <textarea
-                    id="customQuestions"
-                    placeholder="One question per line..."
-                    value={customQuestions}
-                    onChange={e => setCustomQuestions(e.target.value)}
-                    disabled={loading}
-                    className="input-base min-h-[100px] font-mono text-sm resize-none"
+                    className="ocean-input"
+                    rows={3}
+                    value={customQs}
+                    onChange={e => setCustomQs(e.target.value)}
+                    placeholder="What is the best X for Y?&#10;Top solutions in [city]?"
+                    style={{ resize: 'vertical' }}
                   />
                 </div>
 
@@ -298,46 +366,71 @@ export function HomePage() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {error && (
+              <div className="p-3 rounded-lg text-[12px] mb-4" style={{ background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', color: 'var(--score-low)' }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn-ocean w-full"
+              disabled={!canSubmit}
+              style={{ fontSize: 15, padding: '13px 24px' }}
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Waves size={16} strokeWidth={1.5} className="animate-float" /> Diving in…
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  Dive into the Ocean <ArrowRight size={16} strokeWidth={2} />
+                </span>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Recent sessions */}
+        {sessionHistory.length > 0 && (
+          <div className="mt-5">
+            <div className="text-[10px] tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>RECENT DIVES</div>
+            <div className="flex flex-col gap-1.5">
+              {sessionHistory.slice(0, 3).map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => { restoreSession(s); navigate(`/results/${s.id}`) }}
+                  className="glass-light w-full flex items-center justify-between px-3.5 py-2.5 text-left cursor-pointer"
+                  style={{ border: 'none', color: 'var(--text-secondary)' }}
+                >
+                  <div>
+                    <div className="text-[12px]" style={{ color: 'var(--text-primary)' }}>
+                      {(() => { try { return new URL(s.businessUrl).hostname } catch { return s.businessUrl } })()}
+                    </div>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{new Date(Number(s.id)).toLocaleDateString()}</div>
+                  </div>
+                  <div className="text-lg font-bold" style={{ color: scoreColor(s.overallScore), fontFamily: 'var(--font-body)' }}>
+                    {s.overallScore?.toFixed(1)}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
+        )}
 
-          {/* Error Message */}
-          {error && (
-            <div className="bg-score-low/10 border border-score-low rounded-lg px-4 py-3">
-              <p className="text-score-low text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* Loading Indicator */}
-          {loading && (
-            <div className="bg-accent/5 border border-accent rounded-lg px-4 py-3">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                <p className="text-text-secondary text-sm">Analyzing your business...</p>
-              </div>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={!isFormValid || loading}
-            className="btn-accent w-full"
-          >
-            {loading ? 'Analyzing...' : 'Analyze →'}
-          </button>
-        </form>
-
-        {/* Footer */}
-        <div className="mt-12 text-center text-text-muted text-sm space-y-2">
-          <p>
-            This tool analyzes how LLMs perceive your business compared to competitors.
-          </p>
-          <p>
-            All analysis happens securely using your own API keys.
-          </p>
+        <div className="text-center mt-5 text-[11px]" style={{ color: 'var(--text-dim)' }}>
+          API keys stored locally · never sent to our servers
         </div>
       </div>
     </div>
   )
+}
+
+function scoreColor(score?: number): string {
+  if (!score) return 'var(--text-muted)'
+  if (score >= 7) return 'var(--score-high)'
+  if (score >= 4) return 'var(--score-mid)'
+  return 'var(--score-low)'
 }

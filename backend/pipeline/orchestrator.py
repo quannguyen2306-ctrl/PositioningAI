@@ -11,11 +11,13 @@ Pipeline stages:
   5. Chunk all documents
   6. Embed and store in vector DB
   7. Generate test questions
-  8. Run RAG evaluation
-  9. Fit PCA, interpret dimensions, generate recommendations
+  8. Run RAG evaluation (parallel)
+  9. Fit PCA, interpret dimensions, blue ocean analysis, generate recommendations
 """
 
 from openai import OpenAI
+from sklearn.preprocessing import StandardScaler
+
 from .ingestion import fetch_url, chunk_text, extract_business_context
 from .retrieval import search_competitors, fetch_competitor_docs
 from .embeddings import EmbeddingStore
@@ -67,11 +69,16 @@ class AnalysisPipeline:
         self.eval_results = None
         self.multi_engine_results = None
         self.pca = None
+        self.scaler = None
         self.coords = None
+        self.pca_metadata = None
         self.interpretations = None
         self.recommendations = None
         self.plot_2d_fig = None
         self.plot_3d_fig = None
+        self.archetype = None
+        self.blue_ocean_zones = None
+        self.test_questions = None
 
     def _report_progress(self, stage: int, total_stages: int, message: str):
         """Helper to call progress callback."""
@@ -143,23 +150,23 @@ class AnalysisPipeline:
 
         # --- Stage 7: Generate test questions ---
         self._report_progress(7, total_stages, "Generating test questions...")
-        test_questions = generate_test_questions(
+        self.test_questions = generate_test_questions(
             self.business_context,
             self.openai_client,
             self.custom_questions,
         )
         # Limit to requested number
-        test_questions = test_questions[:self.n_questions]
-        self._emit("questions", {"questions": test_questions})
+        self.test_questions = self.test_questions[:self.n_questions]
+        self._emit("questions", {"questions": self.test_questions})
 
-        # --- Stage 8: Run RAG evaluation ---
+        # --- Stage 8: Run RAG evaluation (parallel) ---
         self._report_progress(8, total_stages, "Evaluating visibility in AI responses...")
         self.eval_results = run_evaluation(
-            test_questions,
+            self.test_questions,
             self.store,
             self.openai_client,
             self.business_context.get("business_name", "Your Business"),
-            progress_callback=None,  # Sub-progress handled internally
+            progress_callback=None,
         )
         # Normalise mention_rate to 0.0–1.0 fraction (frontend multiplies by 100)
         eval_for_sse = {
@@ -194,10 +201,10 @@ class AnalysisPipeline:
         self._report_progress(10, total_stages, "Analyzing competitive positioning...")
         embeddings, metadata = self.store.get_all_for_pca()
 
-        self.pca, _, self.coords = fit_pca(embeddings, n_components=3)
+        self.pca, self.scaler, self.coords = fit_pca(embeddings, n_components=3)
         self.interpretations = interpret_dimensions(
             self.pca,
-            metadata,
+            self.pca_metadata,
             self.coords,
             self.openai_client,
             n_samples=5,
@@ -205,17 +212,26 @@ class AnalysisPipeline:
 
         self.plot_2d_fig = plot_2d(
             self.coords,
-            metadata,
+            self.pca_metadata,
             self.interpretations,
             self.business_context.get("business_name", "Your Business"),
         )
 
         self.plot_3d_fig = plot_3d(
             self.coords,
-            metadata,
+            self.pca_metadata,
             self.interpretations,
             self.business_context.get("business_name", "Your Business"),
         )
+
+        # Blue ocean analysis
+        self.archetype = classify_archetype(
+            self.coords,
+            self.pca_metadata,
+            self.eval_results["results"],
+            user_domain="",
+        )
+        self.blue_ocean_zones = find_blue_ocean_zones(self.coords, self.pca_metadata)
 
         # Build PCA points for SSE (coords rows + metadata)
         pca_points = [
@@ -228,6 +244,11 @@ class AnalysisPipeline:
             for i in range(len(self.coords))
         ]
         self._emit("pca", {"points": pca_points, "interpretations": self.interpretations})
+        self._emit("archetype", {"archetype": self.archetype})
+        self._emit("blue_ocean", {
+            "zones": self.blue_ocean_zones,
+            "opportunities": self.eval_results.get("blue_ocean_opportunities", []),
+        })
 
         self.recommendations = generate_recommendations(
             self.business_context,
@@ -255,4 +276,22 @@ class AnalysisPipeline:
                 self.pca.explained_variance_ratio_.tolist()
                 if self.pca else None
             ),
+            "archetype": self.archetype,
+            "blue_ocean_zones": self.blue_ocean_zones,
+            "blue_ocean_opportunities": self.eval_results.get("blue_ocean_opportunities", []),
+        }
+
+    def get_pipeline_data_for_content_lab(self) -> dict:
+        """
+        Return the data needed by the Content Lab endpoint to re-evaluate
+        new content without re-running the full pipeline.
+        """
+        return {
+            "store": self.store,
+            "pca": self.pca,
+            "scaler": self.scaler,
+            "metadata": self.pca_metadata,
+            "questions": self.test_questions,
+            "business_context": self.business_context,
+            "interpretations": self.interpretations,
         }

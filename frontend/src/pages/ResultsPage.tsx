@@ -24,82 +24,120 @@ export function ResultsPage() {
     setActiveSection('overview')
   }
 
-  const isLoading = !results && progress?.status !== 'completed'
+type Tab = 'map' | 'eval' | 'recommendations'
 
-  // Loading state — analysis in progress
-  if (!results && isLoading) {
-    return (
-      <div className="min-h-screen bg-base text-text-primary flex items-center justify-center px-5">
-        <div className="w-full max-w-md">
-          <div className="card p-8 relative overflow-hidden">
-            {/* Sweep bar at bottom of card */}
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-subtle overflow-hidden rounded-b-2xl">
-              <div className="h-full w-1/3 bg-accent rounded-full animate-sweep" />
-            </div>
+export default function ResultsPage() {
+  const navigate = useNavigate()
+  const { results, progress, error, clearSession, contentLabResult } = useAnalysis()
+  const [hoveredDomain, setHoveredDomain] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<Tab>('map')
+  const [contentLabOpen, setContentLabOpen] = useState(true)
+  const [expandedQ, setExpandedQ] = useState<number | null>(null)
 
-            <div className="flex flex-col items-center text-center gap-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-accent rounded-full blur-2xl opacity-20 animate-pulse" />
-                <Eye size={36} className="text-accent relative z-10" strokeWidth={1.5} />
-              </div>
+  // Right panel tab
+  const [rightTab, setRightTab] = useState<'reclab' | 'contentlab'>('reclab')
 
-              <div>
-                <h2 className="font-display text-xl font-bold text-text-primary mb-1">
-                  Analysing Your Business
-                </h2>
-                <p className="text-text-secondary text-sm">
-                  {progress?.message || 'Connecting to analysis pipeline...'}
-                </p>
-              </div>
+  // Recommendation Lab state
+  const [recLabEnabled, setRecLabEnabled] = useState(false)
+  const [pickPointMode, setPickPointMode] = useState(false)
+  const [recommendationTarget, setRecommendationTarget] = useState<{ x: number; y: number } | null>(null)
+  const [contentLabPrefill, setContentLabPrefill] = useState('')
 
-              {progress && (
-                <div className="w-full space-y-2">
-                  <div className="flex justify-between text-xs text-text-muted">
-                    <span>Progress</span>
-                    <span className="font-mono">{progress.percent}%</span>
-                  </div>
-                  <div className="h-1.5 bg-subtle rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-accent rounded-full transition-all duration-300"
-                      style={{ width: `${progress.percent}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+  const handleMapClick = useCallback((dataX: number, dataY: number) => {
+    setRecommendationTarget({ x: dataX, y: dataY })
+  }, [])
+
+  // Build OceanPoints from coords + pca_meta
+  const points: OceanPoint[] = useMemo(() => {
+    if (!results) return []
+    return results.coords.map((c, i) => ({
+      x: c[0],
+      y: c[1],
+      source: (results.pca_meta[i]?.source ?? 'competitor') as 'user' | 'competitor',
+      domain: results.pca_meta[i]?.domain ?? '',
+      text: '',
+    }))
+  }, [results])
+
+  const contentLabPoints: OceanPoint[] | undefined = useMemo(() => {
+    if (!contentLabResult) return undefined
+    return contentLabResult.pca_points.map(p => ({
+      x: p.components[0],
+      y: p.components[1],
+      source: p.source as 'user' | 'competitor',
+      domain: p.domain,
+      text: p.text,
+    }))
+  }, [contentLabResult])
+
+  // Canonical domain order from PCA points — shared by OceanMap and FishLegend
+  // so fish emojis and colors are always consistent between map and legend.
+  const domains = useMemo(() => {
+    const seen = new Set<string>()
+    const list: string[] = []
+    for (const p of points) {
+      if (p.source === 'competitor' && p.domain && !seen.has(p.domain)) {
+        seen.add(p.domain)
+        list.push(p.domain)
+      }
+    }
+    return list
+  }, [points])
+
+  // User centroid in PCA data coordinates (for recommendation lab)
+  const userCentroid = useMemo(() => {
+    const userPts = points.filter(p => p.source === 'user')
+    if (!userPts.length) return null
+    const x = userPts.reduce((s, p) => s + p.x, 0) / userPts.length
+    const y = userPts.reduce((s, p) => s + p.y, 0) / userPts.length
+    return { x, y }
+  }, [points])
+
+  const interps: PcaInterpretation[] = results?.interps ?? []
+  const archetype = contentLabResult?.archetype ?? results?.archetype
+  // Keep original zones stable for recommendation lab (numbered Zone 1/2/3…).
+  // Content Lab re-runs zone detection but we don't renumber — use original on map/rec lab.
+  const blueOceanZones = results?.blue_ocean_zones ?? []
+  const blueOceanOpps = contentLabResult?.blue_ocean_opportunities ?? results?.blue_ocean_opportunities ?? []
+  const evalResults = contentLabResult?.eval ?? results?.eval
+  const avgScore = evalResults?.avg_visibility_score ?? 0
+
+  // Loading state
+  if (!results && progress) {
+    return <LoadingView progress={progress.percent} message={progress.message} />
   }
 
-  // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-base text-text-primary flex items-center justify-center px-5">
-        <div className="w-full max-w-lg">
-          <div className="bg-score-low/10 border border-score-low rounded-2xl px-6 py-5">
-            <h2 className="font-display font-bold text-lg text-score-low mb-2">Analysis Failed</h2>
-            <p className="text-text-secondary text-sm">{error}</p>
-          </div>
+      <div className="ocean-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="glass" style={{ padding: 32, maxWidth: 420, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 16, color: 'var(--color-secondary)' }}><Waves size={40} strokeWidth={1.2} /></div>
+          <div style={{ fontSize: 16, color: 'var(--score-low)', marginBottom: 8 }}>The ocean is rough</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>{error}</div>
+          <button className="btn-ocean" onClick={() => { clearSession(); navigate('/') }}>
+            Try Again
+          </button>
         </div>
       </div>
     )
   }
 
-  // No results (shouldn't happen normally)
   if (!results) {
     return (
-      <div className="min-h-screen bg-base text-text-primary flex items-center justify-center">
-        <p className="text-text-muted">No results available</p>
+      <div className="ocean-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ marginBottom: 12, color: 'var(--color-secondary)' }} className="animate-float"><Waves size={40} strokeWidth={1.2} /></div>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>No dive data found.</div>
+          <button className="btn-ocean" style={{ marginTop: 16 }} onClick={() => navigate('/')}>
+            Start a Dive
+          </button>
+        </div>
       </div>
     )
   }
 
-  const visibilityScore = results.eval.avg_visibility_score
-  const mentionRate = results.eval.mention_rate * 100
-  const highCount = results.eval.score_breakdown['high (8-10)']
-  const competitorCount = results.comp_docs.length
+  const biz = results.biz
+  const topDomains = results.eval.top_competitor_domains
 
   return (
     <div className="flex flex-col h-screen bg-base animate-fade-up">
@@ -129,6 +167,39 @@ export function ResultsPage() {
             highCount={highCount}
             competitorCount={competitorCount}
           />
+        </div>
+
+        {/* Score breakdown */}
+        <div className="glass-light" style={{ padding: '12px 14px' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 10 }}>
+            SCORE BREAKDOWN
+          </div>
+          <ScoreBar label="High (8-10)" value={evalResults?.score_breakdown['high (8-10)'] ?? 0} total={evalResults?.total_questions ?? 1} color="var(--score-high)" />
+          <ScoreBar label="Medium (5-7)" value={evalResults?.score_breakdown['medium (5-7)'] ?? 0} total={evalResults?.total_questions ?? 1} color="var(--score-mid)" />
+          <ScoreBar label="Low (0-4)" value={evalResults?.score_breakdown['low (0-4)'] ?? 0} total={evalResults?.total_questions ?? 1} color="var(--score-low)" />
+        </div>
+
+        {interps.length > 0 && (
+          <div className="glass-light" style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 10 }}>
+              OCEAN AXES
+            </div>
+            {interps.slice(0, 2).map((interp, i) => (
+              <div key={i} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: 'var(--color-primary)', fontWeight: 600, marginBottom: 3 }}>
+                  {interp.dimension_name}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                  {interp.negative_end} ↔ {interp.positive_end}
+                </div>
+                <div style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 2 }}>
+                  {interp.variance_explained}% of variance
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </aside>
 
           {/* Content panel — key triggers re-mount + fade-in on section switch */}
           <div key={activeSection} className="p-5 section-panel">
@@ -174,8 +245,315 @@ export function ResultsPage() {
               />
             )}
           </div>
-        </main>
+        )}
+
+        {activeTab === 'eval' && (
+          <div style={{ height: '100%', overflowY: 'auto', padding: '20px' }}>
+            <div style={{ maxWidth: 700, margin: '0 auto' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
+                Question Evaluation — {evalResults?.total_questions} questions tested in parallel
+              </div>
+              {evalResults?.results.map((r, i) => (
+                <div
+                  key={i}
+                  className="glass-light"
+                  style={{
+                    marginBottom: 10,
+                    border: r.is_blue_ocean
+                      ? '1px solid rgba(0,245,212,0.3)'
+                      : '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <button
+                    onClick={() => setExpandedQ(expandedQ === i ? null : i)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '12px 14px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-primary)',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <div style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: `${scoreColor(r.visibility_score)}22`,
+                        border: `1.5px solid ${scoreColor(r.visibility_score)}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: scoreColor(r.visibility_score),
+                        flexShrink: 0,
+                        fontFamily: 'var(--font-body)',
+                      }}>
+                        {r.visibility_score}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.4 }} className="truncate-2">
+                          {r.question}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {r.key_observation}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      {r.is_blue_ocean && (
+                        <span style={{ fontSize: 9, padding: '2px 8px', background: 'rgba(0,245,212,0.1)', border: '1px solid rgba(0,245,212,0.3)', borderRadius: 99, color: 'var(--ocean-unclaimed)', fontWeight: 600 }}>
+                          UNCLAIMED
+                        </span>
+                      )}
+                      <span className={r.business_mentioned ? 'score-badge-high' : 'score-badge-low'} style={{ fontSize: 9 }}>
+                        {r.business_mentioned ? 'MENTIONED' : 'ABSENT'}
+                      </span>
+                    </div>
+                  </button>
+
+                  {expandedQ === i && (
+                    <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border-subtle)' }}>
+                      <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>AI Answer:</div>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0, background: 'var(--bg-mid)', padding: '10px 12px', borderRadius: 8 }}>
+                          {r.answer}
+                        </p>
+                        {r.why_low_visibility && (
+                          <div style={{ padding: '8px 12px', background: 'rgba(239,35,60,0.06)', border: '1px solid rgba(239,35,60,0.15)', borderRadius: 8, fontSize: 12, color: 'var(--score-low)' }}>
+                            ⚠ {r.why_low_visibility}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                          <span>Your chunks: {r.user_chunk_count}</span>
+                          <span>·</span>
+                          <span>Competitor chunks: {r.comp_chunk_count}</span>
+                          <span>·</span>
+                          <span>Quality: {r.mention_quality}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'recommendations' && (
+          <div style={{ height: '100%', overflowY: 'auto', padding: '20px' }}>
+            <div style={{ maxWidth: 700, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Executive summary */}
+              <div className="glass" style={{ padding: '20px' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 8 }}>EXECUTIVE SUMMARY</div>
+                <p style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.7, margin: 0 }}>
+                  {results.recs.executive_summary}
+                </p>
+              </div>
+
+              {/* Priority fixes */}
+              {results.recs.priority_fixes.map((fix, i) => (
+                <div key={i} className="glass-light" style={{ padding: '16px', border: `1px solid ${impactColor(fix.impact)}30` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{fix.title}</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <span style={{ fontSize: 9, padding: '2px 8px', background: `${impactColor(fix.impact)}15`, border: `1px solid ${impactColor(fix.impact)}40`, borderRadius: 99, color: impactColor(fix.impact), fontWeight: 600 }}>
+                        {fix.impact.toUpperCase()}
+                      </span>
+                      <span style={{ fontSize: 9, padding: '2px 8px', background: 'rgba(0,180,216,0.08)', border: '1px solid rgba(0,180,216,0.2)', borderRadius: 99, color: 'var(--glow-blue)', fontWeight: 600 }}>
+                        {fix.effort}
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', lineHeight: 1.6 }}>{fix.problem}</p>
+                  <p style={{ fontSize: 12, color: 'var(--color-secondary)', margin: 0, lineHeight: 1.6 }}>{fix.action}</p>
+                </div>
+              ))}
+
+              {/* Content to add */}
+              {results.recs.content_to_add.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 12 }}>CONTENT TO ADD</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {results.recs.content_to_add.map((c, i) => (
+                      <div key={i} className="glass-light" style={{ padding: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{c.title}</div>
+                          <span style={{ fontSize: 9, padding: '2px 8px', background: 'rgba(0,245,212,0.08)', border: '1px solid rgba(0,245,212,0.25)', borderRadius: 99, color: 'var(--ocean-unclaimed)', fontWeight: 600 }}>{c.type}</span>
+                        </div>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 8px' }}>Placement: {c.placement}</p>
+                        <pre style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'rgba(0,8,20,0.6)', padding: '10px', borderRadius: 6, whiteSpace: 'pre-wrap', fontFamily: 'inherit', lineHeight: 1.6, margin: 0 }}>
+                          {c.suggested_content}
+                        </pre>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Topics */}
+              {results.recs.topics_to_cover.length > 0 && (
+                <div className="glass-light" style={{ padding: '16px' }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 12 }}>TOPICS TO COVER</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {results.recs.topics_to_cover.map((t, i) => (
+                      <span key={i} style={{ fontSize: 12, padding: '4px 12px', background: 'oklch(0.52 0.07 230 / 0.08)', border: '1px solid oklch(0.52 0.07 230 / 0.18)', borderRadius: 99, color: 'var(--color-secondary)' }}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ── RIGHT PANEL ── */}
+      {/* ── RIGHT PANEL ── */}
+      <aside style={{
+        gridArea: 'right',
+        borderLeft: '1px solid var(--border-subtle)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
+        {/* Tab bar */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--bg-mid)',
+          flexShrink: 0,
+        }}>
+          {([['reclab', 'reclab'], ['contentlab', 'contentlab']] as const).map(([tab]) => (
+            <button
+              key={tab}
+              onClick={() => setRightTab(tab)}
+              style={{
+                flex: 1, padding: '10px 6px', fontSize: 11, fontWeight: 600,
+                background: rightTab === tab ? 'var(--bg-top)' : 'transparent',
+                border: 'none',
+                borderBottom: rightTab === tab ? `2px solid var(--color-primary)` : '2px solid transparent',
+                color: rightTab === tab ? 'var(--color-secondary)' : 'var(--text-muted)',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                {tab === 'reclab' ? <><Compass size={12} strokeWidth={2} /> Rec Lab</> : <><FlaskConical size={12} strokeWidth={2} /> Content Lab</>}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Panel content — only the active tab is visible, fills remaining height */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
+          {rightTab === 'reclab' && (
+            <RecommendationLab
+              enabled={recLabEnabled}
+              onToggle={() => {
+                setRecLabEnabled(v => !v)
+                if (recLabEnabled) { setPickPointMode(false); setRecommendationTarget(null) }
+              }}
+              blueOceanZones={blueOceanZones}
+              interpretations={interps}
+              userCentroid={userCentroid}
+              pickPointMode={pickPointMode}
+              onSetPickMode={(active) => {
+                setPickPointMode(active)
+                // Pin persists until user clicks "Remove Pin" or disables rec lab
+              }}
+              onRemovePin={() => setRecommendationTarget(null)}
+              recommendationTarget={recommendationTarget}
+              onPrefillContentLab={(draft) => {
+                setContentLabPrefill(draft)
+                setContentLabOpen(true)
+                setRightTab('contentlab')   // auto-switch to Content Lab tab
+              }}
+            />
+          )}
+
+          {rightTab === 'contentlab' && (
+            <ContentLab
+              isOpen={contentLabOpen}
+              onToggle={() => setContentLabOpen(v => !v)}
+              prefillText={contentLabPrefill}
+            />
+          )}
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+function LoadingView({ progress, message }: { progress: number; message: string }) {
+  const BUBBLES = Array.from({ length: 12 }, (_, i) => ({
+    id: i,
+    left: `${5 + (i * 8.1) % 90}%`,
+    size: 6 + (i * 7) % 24,
+    duration: 8 + (i * 3) % 12,
+    delay: (i * 1.5) % 6,
+  }))
+
+  return (
+    <div className="ocean-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}>
+        {BUBBLES.map(b => (
+          <div key={b.id} className="bubble" style={{ left: b.left, bottom: 0, width: b.size, height: b.size, animationDuration: `${b.duration}s`, animationDelay: `${b.delay}s` }} />
+        ))}
+      </div>
+
+      <div className="glass glow-blue" style={{ padding: '40px', maxWidth: 420, textAlign: 'center', zIndex: 1 }}>
+        <div className="animate-float" style={{ marginBottom: 16, color: 'var(--color-secondary)' }}><Waves size={52} strokeWidth={1.2} /></div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
+          Mapping the Ocean
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
+          {message || 'Analyzing the competitive landscape…'}
+        </div>
+        <div className="ocean-progress-track" style={{ marginBottom: 12 }}>
+          <div className="ocean-progress-bar" style={{ width: `${progress}%` }} />
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--glow-blue)', fontFamily: 'var(--font-body)' }}>
+          {progress}%
+        </div>
+        <div style={{ marginTop: 20, fontSize: 11, color: 'var(--text-dim)' }}>
+          Questions evaluated in parallel — faster than traditional sequential analysis
+        </div>
       </div>
     </div>
   )
+}
+
+function ScoreBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+  const pct = total > 0 ? (value / total) * 100 : 0
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+        <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+        <span style={{ color, fontWeight: 600 }}>{value}</span>
+      </div>
+      <div style={{ height: 3, background: 'var(--bg-top)', borderRadius: 99, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 99, transition: 'width 0.8s ease-out' }} />
+      </div>
+    </div>
+  )
+}
+
+function scoreColor(score: number): string {
+  if (score >= 7) return 'var(--score-high)'
+  if (score >= 4) return 'var(--score-mid)'
+  return 'var(--score-low)'
+}
+
+function impactColor(impact: string): string {
+  if (impact === 'high') return 'var(--score-low)'
+  if (impact === 'medium') return 'var(--score-mid)'
+  return 'var(--score-high)'
 }
