@@ -14,6 +14,9 @@ class AnalysisRequest(BaseModel):
     url: HttpUrl
     openai_key: str
     serper_key: str
+    google_key: Optional[str] = None
+    anthropic_key: Optional[str] = None
+    perplexity_key: Optional[str] = None
     n_competitors: int = Field(default=10, ge=5, le=20)
     n_questions: int = Field(default=10, ge=5, le=15)
     custom_questions: Optional[list[str]] = None

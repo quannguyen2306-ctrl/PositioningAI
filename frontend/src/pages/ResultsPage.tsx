@@ -1,13 +1,28 @@
-import { useState, useMemo, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Waves, Map, BarChart3, Lightbulb, Compass, FlaskConical } from 'lucide-react'
+import { useState } from 'react'
+import { Eye, Cpu } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
-import OceanMap, { type OceanPoint } from '../components/ocean/OceanMap'
-import ArchetypeCard from '../components/ocean/ArchetypeCard'
-import FishLegend from '../components/ocean/FishLegend'
-import ContentLab from '../components/ocean/ContentLab'
-import RecommendationLab from '../components/ocean/RecommendationLab'
-import type { PcaInterpretation } from '../api/types'
+import type { SessionRecord } from '../contexts/AnalysisContext'
+import { DashHeader } from '../components/dashboard/DashHeader'
+import { Sidebar } from '../components/dashboard/Sidebar'
+import { HeroMetrics } from '../components/dashboard/HeroMetrics'
+import { OverviewPanel } from '../components/dashboard/panels/OverviewPanel'
+import { SettingsPanel } from '../components/dashboard/panels/SettingsPanel'
+import { HistoryPanel } from '../components/dashboard/panels/HistoryPanel'
+import { EvaluationTable } from '../components/results/EvaluationTable'
+import { PCAViz } from '../components/results/PCAViz'
+import { RecommendationsList } from '../components/results/RecommendationsList'
+import { MultiEngineComparison } from '../components/results/MultiEngineComparison'
+import type { NavSection } from '../components/dashboard/Sidebar'
+
+export function ResultsPage() {
+  const { results, progress, error, sessionHistory, restoreSession, deleteSession, clearAllSessions, analysisRequest } = useAnalysis()
+  const [activeSection, setActiveSection] = useState<NavSection>('overview')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const handleRestoreSession = (record: SessionRecord) => {
+    restoreSession(record)
+    setActiveSection('overview')
+  }
 
 type Tab = 'map' | 'eval' | 'recommendations'
 
@@ -125,127 +140,32 @@ export default function ResultsPage() {
   const topDomains = results.eval.top_competitor_domains
 
   return (
-    <div
-      className="ocean-bg"
-      style={{
-        height: '100vh',
-        display: 'grid',
-        gridTemplateRows: 'auto 1fr',
-        gridTemplateColumns: '240px 1fr 320px',
-        gridTemplateAreas: `
-          "header header header"
-          "left   main   right"
-        `,
-        overflow: 'hidden',
-        gap: 0,
-      }}
-    >
-      {/* ── HEADER ── */}
-      <header style={{
-        gridArea: 'header',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 20px',
-        borderBottom: '1px solid var(--border-subtle)',
-        background: 'var(--bg-mid)',
-        boxShadow: '0 2px 8px oklch(0 0 0 / 0.25)',
-        backdropFilter: 'blur(12px)',
-        zIndex: 10,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={() => { clearSession(); navigate('/') }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-secondary)', display: 'flex', alignItems: 'center' }}
-          >
-            <Waves size={20} strokeWidth={1.5} />
-          </button>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {biz.business_name}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {biz.industry} · {biz.location}
-            </div>
-          </div>
-        </div>
+    <div className="flex flex-col h-screen bg-base animate-fade-up">
+      <DashHeader
+        onSettingsClick={() => setActiveSection('settings')}
+        onMenuClick={() => setSidebarOpen(true)}
+      />
 
-        {/* Score pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>VISIBILITY</div>
-            <div style={{
-              fontSize: 22,
-              fontWeight: 700,
-              fontFamily: 'var(--font-body)',
-              color: scoreColor(avgScore),
-            }}>
-              {avgScore.toFixed(1)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>/10</span>
-            </div>
-          </div>
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          activeSection={activeSection}
+          onNavigate={(s) => {
+            setActiveSection(s)
+            setSidebarOpen(false)
+          }}
+          testCount={results.eval.total_questions}
+          historyCount={sessionHistory.length}
+          hasEngines={!!results.multi_engine}
+          mobileOpen={sidebarOpen}
+          onMobileClose={() => setSidebarOpen(false)}
+        />
 
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>COVERAGE</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-secondary)' }}>
-              {((evalResults?.mention_rate ?? 0) * 100).toFixed(0)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>%</span>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>BLUE OCEANS</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--ocean-unclaimed)' }}>
-              {blueOceanOpps.length}
-            </div>
-          </div>
-        </div>
-
-        {/* Tab nav */}
-        <nav style={{ display: 'flex', gap: 4 }}>
-          {(['map', 'eval', 'recommendations'] as Tab[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setActiveTab(t)}
-              className="btn-ghost"
-              style={{
-                fontSize: 11,
-                padding: '6px 12px',
-                background: activeTab === t ? 'var(--bg-top)' : 'transparent',
-                color: activeTab === t ? 'var(--color-secondary)' : 'var(--text-muted)',
-                border: activeTab === t ? '1px solid oklch(0.52 0.07 230 / 0.25)' : '1px solid transparent',
-                boxShadow: activeTab === t ? 'var(--shadow-1)' : 'none',
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                {t === 'map' ? <><Map size={12} strokeWidth={2} /> Map</> : t === 'eval' ? <><BarChart3 size={12} strokeWidth={2} /> Eval</> : <><Lightbulb size={12} strokeWidth={2} /> Recs</>}
-              </span>
-            </button>
-          ))}
-        </nav>
-      </header>
-
-      {/* ── LEFT SIDEBAR ── */}
-      <aside style={{
-        gridArea: 'left',
-        padding: '16px 12px',
-        overflowY: 'auto',
-        borderRight: '1px solid var(--border-subtle)',
-        background: 'var(--bg-mid)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-      }}>
-        {archetype && <ArchetypeCard archetype={archetype} />}
-
-        <div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 10 }}>
-            OCEAN TERRITORY
-          </div>
-          <FishLegend
-            domains={domains}
-            userBizName={biz.business_name}
-            topDomains={topDomains}
-            onHover={setHoveredDomain}
-            hoveredDomain={hoveredDomain}
+        <main className="flex-1 overflow-y-auto">
+          <HeroMetrics
+            avgScore={visibilityScore}
+            mentionRate={mentionRate}
+            highCount={highCount}
+            competitorCount={competitorCount}
           />
         </div>
 
@@ -281,23 +201,49 @@ export default function ResultsPage() {
         )}
       </aside>
 
-      {/* ── MAIN CONTENT ── */}
-      <main style={{ gridArea: 'main', overflow: 'hidden', position: 'relative' }}>
-        {activeTab === 'map' && (
-          <div style={{ width: '100%', height: '100%' }}>
-            <OceanMap
-              points={points}
-              interpretations={interps}
-              blueOceanZones={blueOceanZones}
-              userBizName={biz.business_name}
-              highlightedDomain={hoveredDomain}
-              domains={domains}
-              contentLabPoints={contentLabPoints}
-              recommendationMode={recLabEnabled}
-              pickPointMode={pickPointMode}
-              recommendationTarget={recommendationTarget}
-              onMapClick={handleMapClick}
-            />
+          {/* Content panel — key triggers re-mount + fade-in on section switch */}
+          <div key={activeSection} className="p-5 section-panel">
+            {activeSection === 'overview' && (
+              <OverviewPanel
+                results={results}
+                businessUrl={analysisRequest?.url ?? ''}
+                onGoToRecommendations={() => setActiveSection('recommendations')}
+              />
+            )}
+            {activeSection === 'evaluation' && (
+              <EvaluationTable evalData={results.eval} />
+            )}
+            {activeSection === 'positioning' && (
+              <PCAViz
+                coords={results.coords}
+                pcaMeta={results.pca_meta}
+                interps={results.interps}
+              />
+            )}
+            {activeSection === 'recommendations' && (
+              <RecommendationsList recs={results.recs} />
+            )}
+            {activeSection === 'engines' && (
+              results.multi_engine
+                ? <MultiEngineComparison data={results.multi_engine} />
+                : (
+                  <div className="card p-8 text-center">
+                    <Cpu size={32} className="text-text-muted mx-auto mb-3" strokeWidth={1.5} />
+                    <p className="text-text-secondary text-sm">
+                      No multi-engine data available. Provide Anthropic, Google, or Perplexity API keys to enable cross-engine comparison.
+                    </p>
+                  </div>
+                )
+            )}
+            {activeSection === 'settings' && <SettingsPanel />}
+            {activeSection === 'history' && (
+              <HistoryPanel
+                sessions={sessionHistory}
+                onRestore={handleRestoreSession}
+                onDelete={deleteSession}
+                onClearAll={clearAllSessions}
+              />
+            )}
           </div>
         )}
 

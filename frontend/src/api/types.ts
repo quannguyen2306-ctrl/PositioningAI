@@ -2,6 +2,9 @@ export interface AnalysisRequest {
   url: string;
   openai_key: string;
   serper_key: string;
+  google_key?: string;
+  anthropic_key?: string;
+  perplexity_key?: string;
   n_competitors: number;
   n_questions: number;
   custom_questions?: string[];
@@ -91,26 +94,29 @@ export interface CompDoc {
   text: string;
 }
 
-export interface Archetype {
-  name: string;
-  tagline: string;
-  description: string;
-  strategy: string;
-  icon: string;
-  closest_competitor?: string | null;
-}
-
-export interface BlueOceanZone {
-  x: number;
-  y: number;
-  radius: number;
-  label: string;
-}
-
-export interface BlueOceanOpportunity {
+export interface EngineQuestionResult {
   question: string;
+  answer: string;
   visibility_score: number;
-  opportunity_strength: 'high' | 'medium';
+  business_mentioned: boolean;
+  mention_quality: 'prominent' | 'brief' | 'absent';
+  key_observation: string;
+}
+
+export interface EngineResult {
+  engine: string;
+  available: boolean;
+  results: EngineQuestionResult[];
+  avg_visibility_score: number;
+  mention_rate: number;
+}
+
+export interface MultiEngineResult {
+  engines: EngineResult[];
+  comparison_summary: string;
+  best_engine: string;
+  worst_engine: string;
+  cross_engine_avg: number;
 }
 
 export interface AnalysisResult {
@@ -121,17 +127,7 @@ export interface AnalysisResult {
   pca_meta: PcaMeta[];
   interps: PcaInterpretation[];
   recs: Recommendations;
-  archetype?: Archetype;
-  blue_ocean_zones?: BlueOceanZone[];
-  blue_ocean_opportunities?: BlueOceanOpportunity[];
-}
-
-export interface ContentLabResult {
-  eval: EvalSummary;
-  pca_points: PcaPoint[];
-  archetype: Archetype;
-  blue_ocean_zones: BlueOceanZone[];
-  blue_ocean_opportunities: BlueOceanOpportunity[];
+  multi_engine?: MultiEngineResult;
 }
 
 export interface ProgressEvent {

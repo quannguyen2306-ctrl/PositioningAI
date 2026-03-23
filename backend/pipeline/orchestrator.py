@@ -24,7 +24,7 @@ from .embeddings import EmbeddingStore
 from .rag_evaluator import generate_test_questions, run_evaluation
 from .pca_visualizer import fit_pca, interpret_dimensions, plot_2d, plot_3d
 from .recommender import generate_recommendations
-from .blue_ocean import classify_archetype, find_blue_ocean_zones
+from .multi_engine import run_multi_engine_evaluation
 
 
 class AnalysisPipeline:
@@ -42,9 +42,13 @@ class AnalysisPipeline:
         custom_questions: list[str] | None = None,
         progress_callback=None,
         event_callback=None,
+        google_api_key: str = "",
+        anthropic_api_key: str = "",
+        perplexity_api_key: str = "",
     ):
         self.business_url = business_url
         self.openai_client = OpenAI(api_key=openai_api_key)
+        self.openai_api_key = openai_api_key
         self.serper_api_key = serper_api_key
         self.n_competitors = n_competitors
         self.n_questions = n_questions
@@ -52,12 +56,18 @@ class AnalysisPipeline:
         self.progress_callback = progress_callback
         self.event_callback = event_callback
 
+        # Multi-engine API keys
+        self.google_api_key = google_api_key
+        self.anthropic_api_key = anthropic_api_key
+        self.perplexity_api_key = perplexity_api_key
+
         # Pipeline outputs
         self.business_context = None
         self.user_text = None
         self.competitor_docs = None
         self.store = None
         self.eval_results = None
+        self.multi_engine_results = None
         self.pca = None
         self.scaler = None
         self.coords = None
@@ -86,7 +96,7 @@ class AnalysisPipeline:
         Execute the full 9-stage pipeline.
         Returns: dict with all results and visualizations.
         """
-        total_stages = 9
+        total_stages = 10
 
         # --- Stage 1: Fetch user URL ---
         self._report_progress(1, total_stages, "Fetching your business website...")
@@ -165,9 +175,31 @@ class AnalysisPipeline:
         }
         self._emit("eval", {"eval": eval_for_sse})
 
-        # --- Stage 9: PCA + blue ocean + recommendations ---
-        self._report_progress(9, total_stages, "Mapping the competitive ocean...")
-        embeddings, self.pca_metadata = self.store.get_all_for_pca()
+        # --- Stage 9: Multi-engine evaluation ---
+        api_keys = {
+            "openai": self.openai_api_key,
+            "anthropic": self.anthropic_api_key,
+            "google": self.google_api_key,
+            "perplexity": self.perplexity_api_key,
+        }
+        # Only run if at least one engine key is available
+        has_engine_keys = any(api_keys.get(k) for k in api_keys)
+        if has_engine_keys:
+            self._report_progress(9, total_stages, "Testing across AI engines...")
+            self.multi_engine_results = run_multi_engine_evaluation(
+                test_questions,
+                self.business_context.get("business_name", "Your Business"),
+                api_keys,
+                self.openai_client,
+                progress_callback=self.progress_callback,
+            )
+            self._emit("multi_engine", {"data": self.multi_engine_results})
+        else:
+            self._report_progress(9, total_stages, "Skipping multi-engine test (no extra API keys)...")
+
+        # --- Stage 10: PCA + recommendations ---
+        self._report_progress(10, total_stages, "Analyzing competitive positioning...")
+        embeddings, metadata = self.store.get_all_for_pca()
 
         self.pca, self.scaler, self.coords = fit_pca(embeddings, n_components=3)
         self.interpretations = interpret_dimensions(
@@ -205,9 +237,9 @@ class AnalysisPipeline:
         pca_points = [
             {
                 "components": self.coords[i].tolist(),
-                "source": self.pca_metadata[i]["source"],
-                "domain": self.pca_metadata[i]["domain"],
-                "text": self.pca_metadata[i]["text"],
+                "source": metadata[i]["source"],
+                "domain": metadata[i]["domain"],
+                "text": metadata[i].get("text", "")[:200],
             }
             for i in range(len(self.coords))
         ]
@@ -235,6 +267,7 @@ class AnalysisPipeline:
         return {
             "business_context": self.business_context,
             "eval_results": self.eval_results,
+            "multi_engine_results": self.multi_engine_results,
             "interpretations": self.interpretations,
             "recommendations": self.recommendations,
             "plot_2d_json": self.plot_2d_fig.to_json() if self.plot_2d_fig else None,

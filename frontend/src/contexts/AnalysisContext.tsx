@@ -9,10 +9,7 @@ import type {
   Recommendations,
   ProgressEvent,
   CompDoc,
-  Archetype,
-  BlueOceanZone,
-  BlueOceanOpportunity,
-  ContentLabResult,
+  MultiEngineResult,
 } from '../api/types'
 import useSessionStorage from '../hooks/useSessionStorage'
 import type { SessionRecord } from '../hooks/useSessionStorage'
@@ -86,9 +83,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       pca_meta?: Array<{ source: string; url: string; domain: string }>
       interps?: PcaInterpretation[]
       recs?: Recommendations
-      archetype?: Archetype
-      blue_ocean_zones?: BlueOceanZone[]
-      blue_ocean_opportunities?: BlueOceanOpportunity[]
+      multi_engine?: MultiEngineResult
     } = {}
 
     const abort = streamAnalysis(req, {
@@ -116,9 +111,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         acc.blue_ocean_opportunities = opportunities
       },
 
-      onSessionId: (id) => { setBackendSessionId(id) },
-
-      onRecommendations: (recs) => { acc.recs = recs },
+      onMultiEngine: (data) => {
+        acc.multi_engine = data
+      },
 
       onComplete: () => {
         setProgress({ percent: 100, message: 'Ocean mapped!', status: 'completed' })
@@ -131,9 +126,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
             pca_meta: acc.pca_meta ?? [],
             interps: acc.interps ?? [],
             recs: acc.recs,
-            archetype: acc.archetype,
-            blue_ocean_zones: acc.blue_ocean_zones ?? [],
-            blue_ocean_opportunities: acc.blue_ocean_opportunities ?? [],
+            multi_engine: acc.multi_engine,
           }
           setResults(result)
           saveSession(sid, req.url, acc.eval.avg_visibility_score, result)

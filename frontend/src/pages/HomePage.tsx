@@ -24,8 +24,10 @@ export default function HomePage() {
   const [showSerper, setShowSerper] = useState(false)
   const [nCompetitors, setNCompetitors] = useState(8)
   const [nQuestions, setNQuestions] = useState(10)
-  const [customQs, setCustomQs] = useState('')
-  const [advanced, setAdvanced] = useState(false)
+  const [customQuestions, setCustomQuestions] = useState('')
+  const [googleKey, setGoogleKey] = useState('')
+  const [anthropicKey, setAnthropicKey] = useState('')
+  const [perplexityKey, setPerplexityKey] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,16 +50,23 @@ export default function HomePage() {
     setLoading(true)
     setError(null)
 
-    const req: AnalysisRequest = {
-      url: url.trim(),
-      openai_key: openaiKey.trim(),
-      serper_key: serperKey.trim(),
-      n_competitors: nCompetitors,
-      n_questions: nQuestions,
-      custom_questions: customQs
-        ? customQs.split('\n').map(q => q.trim()).filter(Boolean)
-        : undefined,
-    }
+    try {
+      const customQuestionsArray = customQuestions
+        .split('\n')
+        .map(q => q.trim())
+        .filter(q => q.length > 0)
+
+      const req: AnalysisRequest = {
+        url: url.trim(),
+        openai_key: openaiKey.trim(),
+        serper_key: serperKey.trim(),
+        google_key: googleKey.trim() || undefined,
+        anthropic_key: anthropicKey.trim() || undefined,
+        perplexity_key: perplexityKey.trim() || undefined,
+        n_competitors: nCompetitors,
+        n_questions: nQuestions,
+        custom_questions: customQuestionsArray.length > 0 ? customQuestionsArray : undefined,
+      }
 
     try {
       const sid = await startAnalysis(req)
@@ -127,12 +136,33 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Form */}
-        <div className="glass glow-blue p-7">
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                YOUR WEBSITE
+        {/* Main Form Card */}
+        <form onSubmit={handleSubmit} className="card space-y-6">
+          {/* URL Input Section */}
+          <div>
+            <label htmlFor="url" className="input-label">
+              Your Website URL
+            </label>
+            <input
+              id="url"
+              type="url"
+              placeholder="https://yourcompany.com"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              disabled={loading}
+              className="input-base"
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-subtle" />
+
+          {/* Required API Keys */}
+          <div className="space-y-5">
+            {/* OpenAI Key */}
+            <div>
+              <label htmlFor="openaiKey" className="input-label">
+                OpenAI API Key
               </label>
               <input
                 className="ocean-input"
@@ -215,14 +245,51 @@ export default function HomePage() {
               <span style={{ transform: advanced ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
             </button>
 
-            {advanced && (
-              <div className="mb-5 flex flex-col gap-4">
-                <div>
-                  <label className="flex justify-between text-[10px] tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
-                    <span>COMPETITORS TO SCAN</span>
-                    <span style={{ color: 'var(--color-primary)' }}>{nCompetitors}</span>
-                  </label>
-                  <input type="range" min={5} max={20} value={nCompetitors} onChange={e => setNCompetitors(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
+            {/* Collapsible Content */}
+            <div
+              className={`advanced-settings ${showAdvanced ? 'open' : ''}`}
+              style={{ overflow: 'hidden', maxHeight: showAdvanced ? '900px' : '0' }}
+            >
+              <div className="pt-4 space-y-6">
+                {/* Sliders Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Competitors Slider */}
+                  <div>
+                    <label htmlFor="nCompetitors" className="input-label">
+                      <span className="font-mono">{nCompetitors}</span> Competitors
+                    </label>
+                    <input
+                      id="nCompetitors"
+                      type="range"
+                      min="5"
+                      max="20"
+                      value={nCompetitors}
+                      onChange={e => setNCompetitors(parseInt(e.target.value))}
+                      disabled={loading}
+                      className="w-full"
+                      style={{ '--slider-fill': `${((nCompetitors - 5) / 15) * 100}%` } as React.CSSProperties}
+                    />
+                    <div className="text-xs text-text-muted mt-2">5 – 20 domains</div>
+                  </div>
+
+                  {/* Questions Slider */}
+                  <div>
+                    <label htmlFor="nQuestions" className="input-label">
+                      <span className="font-mono">{nQuestions}</span> Questions
+                    </label>
+                    <input
+                      id="nQuestions"
+                      type="range"
+                      min="5"
+                      max="15"
+                      value={nQuestions}
+                      onChange={e => setNQuestions(parseInt(e.target.value))}
+                      disabled={loading}
+                      className="w-full"
+                      style={{ '--slider-fill': `${((nQuestions - 5) / 10) * 100}%` } as React.CSSProperties}
+                    />
+                    <div className="text-xs text-text-muted mt-2">5 – 15 questions</div>
+                  </div>
                 </div>
                 <div>
                   <label className="flex justify-between text-[10px] tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
@@ -243,6 +310,60 @@ export default function HomePage() {
                     placeholder="What is the best X for Y?&#10;Top solutions in [city]?"
                     style={{ resize: 'vertical' }}
                   />
+                </div>
+
+                {/* Multi-AI Engine Keys (Optional) */}
+                <div className="border-t border-subtle pt-4">
+                  <p className="input-label mb-4">
+                    Multi-AI Engine Keys{' '}
+                    <span className="text-text-muted font-normal normal-case tracking-normal">
+                      — Optional. Test across ChatGPT, Claude, Gemini &amp; Perplexity.
+                    </span>
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="anthropicKey" className="input-label">
+                        Anthropic API Key (Claude)
+                      </label>
+                      <input
+                        id="anthropicKey"
+                        type="password"
+                        placeholder="sk-ant-..."
+                        value={anthropicKey}
+                        onChange={e => setAnthropicKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="googleKey" className="input-label">
+                        Google API Key (Gemini)
+                      </label>
+                      <input
+                        id="googleKey"
+                        type="password"
+                        placeholder="AIza..."
+                        value={googleKey}
+                        onChange={e => setGoogleKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="perplexityKey" className="input-label">
+                        Perplexity API Key
+                      </label>
+                      <input
+                        id="perplexityKey"
+                        type="password"
+                        placeholder="pplx-..."
+                        value={perplexityKey}
+                        onChange={e => setPerplexityKey(e.target.value)}
+                        disabled={loading}
+                        className="input-base"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

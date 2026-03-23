@@ -1,25 +1,36 @@
-import { LayoutDashboard, BarChart2, Map, Lightbulb, Settings } from 'lucide-react'
+import { LayoutDashboard, BarChart2, Map, Lightbulb, Settings, Cpu } from 'lucide-react'
 
-export type NavSection = 'overview' | 'evaluation' | 'positioning' | 'recommendations' | 'settings' | 'history'
+export type NavSection = 'overview' | 'evaluation' | 'positioning' | 'recommendations' | 'engines' | 'settings' | 'history'
 
 interface SidebarProps {
   activeSection: NavSection
   onNavigate: (section: NavSection) => void
   testCount: number
   historyCount: number
+  hasEngines?: boolean
   mobileOpen?: boolean
   onMobileClose?: () => void
 }
 
-const NAV_ITEMS = [
-  { id: 'overview' as NavSection, label: 'Overview', icon: LayoutDashboard },
-  { id: 'evaluation' as NavSection, label: 'AI Visibility Tests', icon: BarChart2, badge: true },
-  { id: 'positioning' as NavSection, label: 'Positioning Map', icon: Map },
-  { id: 'recommendations' as NavSection, label: 'Recommendations', icon: Lightbulb },
-  { id: 'settings' as NavSection, label: 'Settings', icon: Settings },
+const BASE_NAV_ITEMS: NavItem[] = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'evaluation', label: 'AI Visibility Tests', icon: BarChart2, badge: true },
+  { id: 'positioning', label: 'Positioning Map', icon: Map },
+  { id: 'recommendations', label: 'Recommendations', icon: Lightbulb },
 ]
 
-export function Sidebar({ activeSection, onNavigate, testCount, historyCount, mobileOpen, onMobileClose }: SidebarProps) {
+type NavItem = { id: NavSection; label: string; icon: typeof LayoutDashboard; badge?: boolean }
+
+const ENGINES_NAV_ITEM: NavItem = { id: 'engines', label: 'AI Engine Comparison', icon: Cpu }
+
+const BOTTOM_NAV_ITEMS: NavItem[] = [
+  { id: 'settings', label: 'Settings', icon: Settings },
+]
+
+export function Sidebar({ activeSection, onNavigate, testCount, historyCount, hasEngines, mobileOpen, onMobileClose }: SidebarProps) {
+  const NAV_ITEMS = hasEngines
+    ? [...BASE_NAV_ITEMS, ENGINES_NAV_ITEM, ...BOTTOM_NAV_ITEMS]
+    : [...BASE_NAV_ITEMS, ...BOTTOM_NAV_ITEMS]
   const showingHistory = activeSection === 'history'
 
   return (

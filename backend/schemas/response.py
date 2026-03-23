@@ -37,6 +37,7 @@ class AnalysisResult(BaseModel):
     pca_meta: list
     interps: list
     recs: dict
+    multi_engine: Optional[dict] = None
 
 
 class AnalysisResponse(BaseModel):

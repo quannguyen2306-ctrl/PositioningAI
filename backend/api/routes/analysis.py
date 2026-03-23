@@ -49,6 +49,9 @@ async def stream_analysis(
     n_competitors: int = Query(5),
     n_questions: int = Query(10),
     custom_questions: str = Query(""),
+    google_key: str = Query(""),
+    anthropic_key: str = Query(""),
+    perplexity_key: str = Query(""),
 ):
     """
     SSE endpoint: runs the full analysis pipeline and streams events.
@@ -77,6 +80,9 @@ async def stream_analysis(
                 custom_questions=parsed_questions,
                 progress_callback=lambda pct, step: emit({"event": "progress", "pct": pct, "step": step}),
                 event_callback=emit,
+                google_api_key=google_key,
+                anthropic_api_key=anthropic_key,
+                perplexity_api_key=perplexity_key,
             )
             result = pipeline.run()
             store.set_result(session_id, result)
@@ -135,6 +141,9 @@ async def start_analysis(request: AnalysisRequest):
                 n_questions=request.n_questions,
                 custom_questions=request.custom_questions,
                 progress_callback=lambda pct, step: store.update_progress(session_id, pct, step),
+                google_api_key=request.google_key or "",
+                anthropic_api_key=request.anthropic_key or "",
+                perplexity_api_key=request.perplexity_key or "",
             )
             result = pipeline.run()
             store.set_result(session_id, result)

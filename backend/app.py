@@ -17,7 +17,7 @@ from config import settings
 from schemas.request import AnalysisRequest
 from cache.session_store import store
 from pipeline.orchestrator import AnalysisPipeline
-from api.routes import health, analysis
+from api.routes import health, analysis, stream
 
 # Create FastAPI app
 app = FastAPI(
@@ -38,6 +38,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router)
 app.include_router(analysis.router)
+app.include_router(stream.router)
 
 # Thread pool for background analysis execution
 executor = ThreadPoolExecutor(max_workers=4)
@@ -52,9 +53,12 @@ def _run_analysis_task(
     Updates session store with progress and results.
     """
     try:
-        # Resolve OpenAI and Serper API keys
+        # Resolve API keys
         openai_key = request.openai_key or settings.openai_api_key
         serper_key = request.serper_key or settings.serper_api_key
+        google_key = (request.google_key or "") or settings.google_api_key
+        anthropic_key = (request.anthropic_key or "") or settings.anthropic_api_key
+        perplexity_key = (request.perplexity_key or "") or settings.perplexity_api_key
 
         if not openai_key or not serper_key:
             store.set_error(session_id, "Missing API keys (OpenAI or Serper)")
@@ -73,6 +77,9 @@ def _run_analysis_task(
             n_questions=request.n_questions,
             custom_questions=request.custom_questions,
             progress_callback=progress_callback,
+            google_api_key=google_key,
+            anthropic_api_key=anthropic_key,
+            perplexity_api_key=perplexity_key,
         )
 
         results = pipeline.run()
