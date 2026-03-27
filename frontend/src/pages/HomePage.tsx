@@ -30,6 +30,7 @@ export default function HomePage() {
   const [perplexityKey, setPerplexityKey] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
     const sk = localStorage.getItem('serper_key') ?? ''
@@ -50,23 +51,22 @@ export default function HomePage() {
     setLoading(true)
     setError(null)
 
-    try {
-      const customQuestionsArray = customQuestions
-        .split('\n')
-        .map(q => q.trim())
-        .filter(q => q.length > 0)
+    const customQuestionsArray = customQuestions
+      .split('\n')
+      .map(q => q.trim())
+      .filter(q => q.length > 0)
 
-      const req: AnalysisRequest = {
-        url: url.trim(),
-        openai_key: openaiKey.trim(),
-        serper_key: serperKey.trim(),
-        google_key: googleKey.trim() || undefined,
-        anthropic_key: anthropicKey.trim() || undefined,
-        perplexity_key: perplexityKey.trim() || undefined,
-        n_competitors: nCompetitors,
-        n_questions: nQuestions,
-        custom_questions: customQuestionsArray.length > 0 ? customQuestionsArray : undefined,
-      }
+    const req: AnalysisRequest = {
+      url: url.trim(),
+      openai_key: openaiKey.trim(),
+      serper_key: serperKey.trim(),
+      google_key: googleKey.trim() || undefined,
+      anthropic_key: anthropicKey.trim() || undefined,
+      perplexity_key: perplexityKey.trim() || undefined,
+      n_competitors: nCompetitors,
+      n_questions: nQuestions,
+      custom_questions: customQuestionsArray.length > 0 ? customQuestionsArray : undefined,
+    }
 
     try {
       const sid = await startAnalysis(req)
@@ -230,19 +230,19 @@ export default function HomePage() {
 
             <button
               type="button"
-              onClick={() => setAdvanced(v => !v)}
-              aria-expanded={advanced}
-              aria-label={advanced ? 'Collapse advanced settings' : 'Expand advanced settings'}
+              onClick={() => setShowAdvanced(v => !v)}
+              aria-expanded={showAdvanced}
+              aria-label={showAdvanced ? 'Collapse advanced settings' : 'Expand advanced settings'}
               className="w-full flex justify-between items-center py-2 bg-transparent border-none cursor-pointer text-[11px] tracking-wide"
               style={{
                 color: 'var(--text-muted)',
-                marginBottom: advanced ? 12 : 20,
+                marginBottom: showAdvanced ? 12 : 20,
                 borderTop: '1px solid oklch(0.52 0.07 230 / 0.12)',
                 paddingTop: 8,
               }}
             >
               <span>ADVANCED SETTINGS</span>
-              <span style={{ transform: advanced ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+              <span style={{ transform: showAdvanced ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
             </button>
 
             {/* Collapsible Content */}
@@ -305,8 +305,8 @@ export default function HomePage() {
                   <textarea
                     className="ocean-input"
                     rows={3}
-                    value={customQs}
-                    onChange={e => setCustomQs(e.target.value)}
+                    value={customQuestions}
+                    onChange={e => setCustomQuestions(e.target.value)}
                     placeholder="What is the best X for Y?&#10;Top solutions in [city]?"
                     style={{ resize: 'vertical' }}
                   />
@@ -366,7 +366,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {error && (
               <div className="p-3 rounded-lg text-[12px] mb-4" style={{ background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', color: 'var(--score-low)' }}>
@@ -390,8 +390,8 @@ export default function HomePage() {
                 </span>
               )}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
 
         {/* Recent sessions */}
         {sessionHistory.length > 0 && (

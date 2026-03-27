@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Eye, Cpu } from 'lucide-react'
+import { useState, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Eye, Cpu, Waves, Compass, FlaskConical } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import type { SessionRecord } from '../contexts/AnalysisContext'
 import { DashHeader } from '../components/dashboard/DashHeader'
@@ -14,23 +15,20 @@ import { RecommendationsList } from '../components/results/RecommendationsList'
 import { MultiEngineComparison } from '../components/results/MultiEngineComparison'
 import type { NavSection } from '../components/dashboard/Sidebar'
 
-export function ResultsPage() {
-  const { results, progress, error, sessionHistory, restoreSession, deleteSession, clearAllSessions, analysisRequest } = useAnalysis()
+type Tab = 'map' | 'eval' | 'recommendations'
+
+export default function ResultsPage() {
+  const navigate = useNavigate()
+  const { results, progress, error, clearSession, contentLabResult, sessionHistory, restoreSession, deleteSession, clearAllSessions, analysisRequest } = useAnalysis()
   const [activeSection, setActiveSection] = useState<NavSection>('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [hoveredDomain, setHoveredDomain] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<Tab>('map')
 
   const handleRestoreSession = (record: SessionRecord) => {
     restoreSession(record)
     setActiveSection('overview')
   }
-
-type Tab = 'map' | 'eval' | 'recommendations'
-
-export default function ResultsPage() {
-  const navigate = useNavigate()
-  const { results, progress, error, clearSession, contentLabResult } = useAnalysis()
-  const [hoveredDomain, setHoveredDomain] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('map')
   const [contentLabOpen, setContentLabOpen] = useState(true)
   const [expandedQ, setExpandedQ] = useState<number | null>(null)
 
@@ -102,6 +100,13 @@ export default function ResultsPage() {
   const evalResults = contentLabResult?.eval ?? results?.eval
   const avgScore = evalResults?.avg_visibility_score ?? 0
 
+  const visibilityScore = avgScore
+  const mentionRate = evalResults && evalResults.total_questions > 0
+    ? Math.round((evalResults.results.filter((r: { business_mentioned: boolean }) => r.business_mentioned).length / evalResults.total_questions) * 100)
+    : 0
+  const highCount = evalResults?.score_breakdown?.['high (8-10)'] ?? 0
+  const competitorCount = results?.eval?.top_competitor_domains?.length ?? 0
+
   // Loading state
   if (!results && progress) {
     return <LoadingView progress={progress.percent} message={progress.message} />
@@ -167,8 +172,15 @@ export default function ResultsPage() {
             highCount={highCount}
             competitorCount={competitorCount}
           />
-        </div>
+        </main>
 
+        <aside style={{
+          gridArea: 'left',
+          borderRight: '1px solid var(--border-subtle)',
+          overflow: 'y-auto',
+          padding: '14px 12px',
+          maxWidth: '280px',
+        }}>
         {/* Score breakdown */}
         <div className="glass-light" style={{ padding: '12px 14px' }}>
           <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 10 }}>
@@ -199,8 +211,10 @@ export default function ResultsPage() {
             ))}
           </div>
         )}
-      </aside>
+        </aside>
 
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto">
           {/* Content panel — key triggers re-mount + fade-in on section switch */}
           <div key={activeSection} className="p-5 section-panel">
             {activeSection === 'overview' && (
@@ -245,7 +259,7 @@ export default function ResultsPage() {
               />
             )}
           </div>
-        )}
+        </div>
 
         {activeTab === 'eval' && (
           <div style={{ height: '100%', overflowY: 'auto', padding: '20px' }}>
@@ -414,9 +428,8 @@ export default function ResultsPage() {
             </div>
           </div>
         )}
-      </main>
+        </div>
 
-      {/* ── RIGHT PANEL ── */}
       {/* ── RIGHT PANEL ── */}
       <aside style={{
         gridArea: 'right',
