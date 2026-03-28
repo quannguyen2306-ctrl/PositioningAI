@@ -150,7 +150,7 @@ export default function HomePage() {
               value={url}
               onChange={e => setUrl(e.target.value)}
               disabled={loading}
-              className="input-base"
+              className="ocean-input"
             />
           </div>
 
@@ -159,22 +159,7 @@ export default function HomePage() {
 
           {/* Required API Keys */}
           <div className="space-y-5">
-            {/* OpenAI Key */}
-            <div>
-              <label htmlFor="openaiKey" className="input-label">
-                OpenAI API Key
-              </label>
-              <input
-                className="ocean-input"
-                type="url"
-                placeholder="https://yourbusiness.com"
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   OPENAI KEY
@@ -236,7 +221,6 @@ export default function HomePage() {
               className="w-full flex justify-between items-center py-2 bg-transparent border-none cursor-pointer text-[11px] tracking-wide"
               style={{
                 color: 'var(--text-muted)',
-                marginBottom: showAdvanced ? 12 : 20,
                 borderTop: '1px solid oklch(0.52 0.07 230 / 0.12)',
                 paddingTop: 8,
               }}
@@ -292,13 +276,6 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div>
-                  <label className="flex justify-between text-[10px] tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
-                    <span>TEST QUESTIONS</span>
-                    <span style={{ color: 'var(--color-primary)' }}>{nQuestions}</span>
-                  </label>
-                  <input type="range" min={5} max={15} value={nQuestions} onChange={e => setNQuestions(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
-                </div>
-                <div>
                   <label className="block text-[10px] tracking-wide mb-1.5" style={{ color: 'var(--text-muted)' }}>
                     CUSTOM QUESTIONS (optional, one per line)
                   </label>
@@ -332,7 +309,7 @@ export default function HomePage() {
                         value={anthropicKey}
                         onChange={e => setAnthropicKey(e.target.value)}
                         disabled={loading}
-                        className="input-base"
+                        className="ocean-input"
                       />
                     </div>
                     <div>
@@ -346,7 +323,7 @@ export default function HomePage() {
                         value={googleKey}
                         onChange={e => setGoogleKey(e.target.value)}
                         disabled={loading}
-                        className="input-base"
+                        className="ocean-input"
                       />
                     </div>
                     <div>
@@ -360,7 +337,7 @@ export default function HomePage() {
                         value={perplexityKey}
                         onChange={e => setPerplexityKey(e.target.value)}
                         disabled={loading}
-                        className="input-base"
+                        className="ocean-input"
                       />
                     </div>
                   </div>
@@ -369,7 +346,7 @@ export default function HomePage() {
             </div>
 
             {error && (
-              <div className="p-3 rounded-lg text-[12px] mb-4" style={{ background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', color: 'var(--score-low)' }}>
+              <div className="p-3 rounded-lg text-[12px]" style={{ background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', color: 'var(--score-low)' }}>
                 {error}
               </div>
             )}
