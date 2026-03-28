@@ -516,8 +516,6 @@ export default function ResultsPage() {
   )
 }
 
-import type { ProgressEvent } from '../api/types'
-
 function LoadingView({ progress }: { progress: ProgressEvent }) {
   const BUBBLES = Array.from({ length: 12 }, (_, i) => ({
     id: i,
