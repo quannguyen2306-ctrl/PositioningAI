@@ -48,6 +48,32 @@ def fetch_url(url: str, timeout: int = 15) -> str:
     return text
 
 
+def fetch_url_with_html(url: str, timeout: int = 15) -> tuple[str, str]:
+    """
+    Fetch a URL and return both raw HTML and clean readable text.
+    Returns: (clean_text, raw_html)
+
+    The raw HTML is useful for schema.org JSON-LD parsing.
+    The clean text is used for chunking and embedding.
+    """
+    resp = requests.get(url, headers=HEADERS, timeout=timeout)
+    resp.raise_for_status()
+
+    raw_html = resp.text
+
+    soup = BeautifulSoup(raw_html, "lxml")
+
+    # Remove non-content elements
+    for tag in soup(["script", "style", "nav", "footer", "header",
+                     "aside", "form", "noscript", "svg", "iframe"]):
+        tag.decompose()
+
+    text = soup.get_text(separator=" ", strip=True)
+    # Collapse whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    return text, raw_html
+
+
 # ---------------------------------------------------------------------------
 # Chunking
 # ---------------------------------------------------------------------------

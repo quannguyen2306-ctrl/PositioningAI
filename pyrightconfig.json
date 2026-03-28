@@ -1,0 +1,8 @@
+{
+  "include": ["backend", "frontend/src"],
+  "extraPaths": ["backend"],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "warning"
+}

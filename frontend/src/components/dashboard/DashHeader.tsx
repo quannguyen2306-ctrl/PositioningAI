@@ -1,6 +1,7 @@
-import { Eye, ChevronDown, Settings, Plus, Menu } from 'lucide-react'
+import { Eye, ChevronDown, Settings, Plus, Menu, RotateCcw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAnalysis } from '../../contexts/AnalysisContext'
+import { useSetPreFillForm } from '../../hooks/usePreFillForm.tsx'
 
 interface DashHeaderProps {
   onSettingsClick: () => void
@@ -9,11 +10,19 @@ interface DashHeaderProps {
 
 export function DashHeader({ onSettingsClick, onMenuClick }: DashHeaderProps) {
   const navigate = useNavigate()
-  const { results, clearSession } = useAnalysis()
+  const { results, clearSession, analysisRequest } = useAnalysis()
+  const setPreFillRequest = useSetPreFillForm()
 
   const handleNewAnalysis = () => {
     clearSession()
     navigate('/')
+  }
+
+  const handleReRun = () => {
+    if (analysisRequest) {
+      setPreFillRequest(analysisRequest)
+      navigate('/')
+    }
   }
 
   return (
@@ -57,6 +66,17 @@ export function DashHeader({ onSettingsClick, onMenuClick }: DashHeaderProps) {
         >
           <Settings size={18} strokeWidth={1.5} />
         </button>
+        {analysisRequest && (
+          <button
+            onClick={handleReRun}
+            className="flex items-center gap-1.5 btn-pill bg-accent text-white text-sm hover:bg-accent-dim hover:-translate-y-px hover:shadow-accent-glow"
+            aria-label="Re-Run analysis"
+            title="Re-Run analysis with same parameters"
+          >
+            <RotateCcw size={14} strokeWidth={2} />
+            <span className="hidden sm:block">Re-Run</span>
+          </button>
+        )}
         <button
           onClick={handleNewAnalysis}
           className="flex items-center gap-1.5 btn-pill bg-accent text-white text-sm hover:bg-accent-dim hover:-translate-y-px hover:shadow-accent-glow"

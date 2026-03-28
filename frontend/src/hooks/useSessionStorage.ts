@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { AnalysisResult } from '../api/types'
+import type { AnalysisResult, AnalysisRequest } from '../api/types'
 
 const SESSION_KEY_PREFIX = 'posai_session_'
 const MAX_SESSIONS = 10
@@ -12,11 +12,12 @@ export interface SessionRecord {
   businessUrl: string
   overallScore: number
   results: AnalysisResult
+  analysisRequest?: AnalysisRequest
 }
 
 export interface UseSessionStorageReturn {
   sessions: SessionRecord[]
-  saveSession: (id: string, businessUrl: string, overallScore: number, results: AnalysisResult) => void
+  saveSession: (id: string, businessUrl: string, overallScore: number, results: AnalysisResult, analysisRequest?: AnalysisRequest) => void
   loadSession: (id: string) => SessionRecord | null
   deleteSession: (id: string) => void
   clearAll: () => void
@@ -63,7 +64,7 @@ export default function useSessionStorage(): UseSessionStorageReturn {
   }, [])
 
   const saveSession = useCallback(
-    (id: string, businessUrl: string, overallScore: number, results: AnalysisResult) => {
+    (id: string, businessUrl: string, overallScore: number, results: AnalysisResult, analysisRequest?: AnalysisRequest) => {
       try {
         const now = Date.now()
         const record: SessionRecord = {
@@ -73,6 +74,7 @@ export default function useSessionStorage(): UseSessionStorageReturn {
           businessUrl,
           overallScore,
           results,
+          analysisRequest,
         }
         localStorage.setItem(SESSION_KEY_PREFIX + id, JSON.stringify(record))
 

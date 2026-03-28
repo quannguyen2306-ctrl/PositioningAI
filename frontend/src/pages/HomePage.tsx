@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, ArrowRight, Waves } from 'lucide-react'
+import { Waves } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
+import SetupWizard, { type WizardFormData } from '../components/setup/SetupWizard'
 import type { AnalysisRequest } from '../api/types'
 
 const BUBBLES = Array.from({ length: 18 }, (_, i) => ({
@@ -17,55 +18,22 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { startAnalysis, sessionHistory, restoreSession } = useAnalysis()
 
-  const [url, setUrl] = useState('')
-  const [openaiKey, setOpenaiKey] = useState('')
-  const [serperKey, setSerperKey] = useState('')
-  const [showOpenai, setShowOpenai] = useState(false)
-  const [showSerper, setShowSerper] = useState(false)
-  const [nCompetitors, setNCompetitors] = useState(8)
-  const [nQuestions, setNQuestions] = useState(10)
-  const [customQuestions, setCustomQuestions] = useState('')
-  const [googleKey, setGoogleKey] = useState('')
-  const [anthropicKey, setAnthropicKey] = useState('')
-  const [perplexityKey, setPerplexityKey] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
-  useEffect(() => {
-    const sk = sessionStorage.getItem('serper_key') ?? ''
-    const ok = sessionStorage.getItem('openai_key') ?? ''
-    if (sk) setSerperKey(sk)
-    if (ok) setOpenaiKey(ok)
-  }, [])
-
-  const canSubmit = url.trim() && openaiKey.trim() && serperKey.trim() && !loading
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!canSubmit) return
-
-    sessionStorage.setItem('openai_key', openaiKey)
-    sessionStorage.setItem('serper_key', serperKey)
+  const handleWizardSubmit = async (data: WizardFormData) => {
+    sessionStorage.setItem('openai_key', data.openai_key)
+    sessionStorage.setItem('serper_key', data.serper_key)
 
     setLoading(true)
     setError(null)
 
-    const customQuestionsArray = customQuestions
-      .split('\n')
-      .map(q => q.trim())
-      .filter(q => q.length > 0)
-
     const req: AnalysisRequest = {
-      url: url.trim(),
-      openai_key: openaiKey.trim(),
-      serper_key: serperKey.trim(),
-      google_key: googleKey.trim() || undefined,
-      anthropic_key: anthropicKey.trim() || undefined,
-      perplexity_key: perplexityKey.trim() || undefined,
-      n_competitors: nCompetitors,
-      n_questions: nQuestions,
-      custom_questions: customQuestionsArray.length > 0 ? customQuestionsArray : undefined,
+      url: data.url,
+      openai_key: data.openai_key,
+      serper_key: data.serper_key,
+      n_competitors: data.n_competitors,
+      n_questions: data.n_questions,
     }
 
     try {
@@ -136,239 +104,10 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Main Form Card */}
-        <form onSubmit={handleSubmit} className="card space-y-6">
-          {/* URL Input Section */}
-          <div>
-            <label htmlFor="url" className="input-label">
-              Your Website URL
-            </label>
-            <input
-              id="url"
-              type="url"
-              placeholder="https://yourcompany.com"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
-              disabled={loading}
-              className="ocean-input"
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-subtle" />
-
-          {/* Required API Keys */}
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                  OPENAI KEY
-                </label>
-                <div className="relative">
-                  <input
-                    className="ocean-input"
-                    type={showOpenai ? 'text' : 'password'}
-                    placeholder="sk-…"
-                    value={openaiKey}
-                    onChange={e => setOpenaiKey(e.target.value)}
-                    style={{ paddingRight: 36 }}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowOpenai(v => !v)}
-                    aria-label={showOpenai ? 'Hide OpenAI key' : 'Show OpenAI key'}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer flex items-center"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    {showOpenai ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                  SERPER KEY
-                </label>
-                <div className="relative">
-                  <input
-                    className="ocean-input"
-                    type={showSerper ? 'text' : 'password'}
-                    placeholder="your key"
-                    value={serperKey}
-                    onChange={e => setSerperKey(e.target.value)}
-                    style={{ paddingRight: 36 }}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSerper(v => !v)}
-                    aria-label={showSerper ? 'Hide Serper key' : 'Show Serper key'}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-none border-none cursor-pointer flex items-center"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    {showSerper ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(v => !v)}
-              aria-expanded={showAdvanced}
-              aria-label={showAdvanced ? 'Collapse advanced settings' : 'Expand advanced settings'}
-              className="w-full flex justify-between items-center py-2 bg-transparent border-none cursor-pointer text-[11px] tracking-wide"
-              style={{
-                color: 'var(--text-muted)',
-                borderTop: '1px solid oklch(0.52 0.07 230 / 0.12)',
-                paddingTop: 8,
-              }}
-            >
-              <span>ADVANCED SETTINGS</span>
-              <span style={{ transform: showAdvanced ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-            </button>
-
-            {/* Collapsible Content */}
-            <div
-              className={`advanced-settings ${showAdvanced ? 'open' : ''}`}
-              style={{ overflow: 'hidden', maxHeight: showAdvanced ? '900px' : '0' }}
-            >
-              <div className="pt-4 space-y-6">
-                {/* Sliders Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Competitors Slider */}
-                  <div>
-                    <label htmlFor="nCompetitors" className="input-label">
-                      <span className="font-mono">{nCompetitors}</span> Competitors
-                    </label>
-                    <input
-                      id="nCompetitors"
-                      type="range"
-                      min="5"
-                      max="20"
-                      value={nCompetitors}
-                      onChange={e => setNCompetitors(parseInt(e.target.value))}
-                      disabled={loading}
-                      className="w-full"
-                      style={{ '--slider-fill': `${((nCompetitors - 5) / 15) * 100}%` } as React.CSSProperties}
-                    />
-                    <div className="text-xs text-text-muted mt-2">5 – 20 domains</div>
-                  </div>
-
-                  {/* Questions Slider */}
-                  <div>
-                    <label htmlFor="nQuestions" className="input-label">
-                      <span className="font-mono">{nQuestions}</span> Questions
-                    </label>
-                    <input
-                      id="nQuestions"
-                      type="range"
-                      min="5"
-                      max="15"
-                      value={nQuestions}
-                      onChange={e => setNQuestions(parseInt(e.target.value))}
-                      disabled={loading}
-                      className="w-full"
-                      style={{ '--slider-fill': `${((nQuestions - 5) / 10) * 100}%` } as React.CSSProperties}
-                    />
-                    <div className="text-xs text-text-muted mt-2">5 – 15 questions</div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] tracking-wide mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                    CUSTOM QUESTIONS (optional, one per line)
-                  </label>
-                  <textarea
-                    className="ocean-input"
-                    rows={3}
-                    value={customQuestions}
-                    onChange={e => setCustomQuestions(e.target.value)}
-                    placeholder="What is the best X for Y?&#10;Top solutions in [city]?"
-                    style={{ resize: 'vertical' }}
-                  />
-                </div>
-
-                {/* Multi-AI Engine Keys (Optional) */}
-                <div className="border-t border-subtle pt-4">
-                  <p className="input-label mb-4">
-                    Multi-AI Engine Keys{' '}
-                    <span className="text-text-muted font-normal normal-case tracking-normal">
-                      — Optional. Test across ChatGPT, Claude, Gemini &amp; Perplexity.
-                    </span>
-                  </p>
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="anthropicKey" className="input-label">
-                        Anthropic API Key (Claude)
-                      </label>
-                      <input
-                        id="anthropicKey"
-                        type="password"
-                        placeholder="sk-ant-..."
-                        value={anthropicKey}
-                        onChange={e => setAnthropicKey(e.target.value)}
-                        disabled={loading}
-                        className="ocean-input"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="googleKey" className="input-label">
-                        Google API Key (Gemini)
-                      </label>
-                      <input
-                        id="googleKey"
-                        type="password"
-                        placeholder="AIza..."
-                        value={googleKey}
-                        onChange={e => setGoogleKey(e.target.value)}
-                        disabled={loading}
-                        className="ocean-input"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="perplexityKey" className="input-label">
-                        Perplexity API Key
-                      </label>
-                      <input
-                        id="perplexityKey"
-                        type="password"
-                        placeholder="pplx-..."
-                        value={perplexityKey}
-                        onChange={e => setPerplexityKey(e.target.value)}
-                        disabled={loading}
-                        className="ocean-input"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {error && (
-              <div className="p-3 rounded-lg text-[12px]" style={{ background: 'rgba(239,35,60,0.08)', border: '1px solid rgba(239,35,60,0.25)', color: 'var(--score-low)' }}>
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="btn-ocean w-full"
-              disabled={!canSubmit}
-              style={{ fontSize: 15, padding: '13px 24px' }}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Waves size={16} strokeWidth={1.5} className="animate-float" /> Diving in…
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  Dive into the Ocean <ArrowRight size={16} strokeWidth={2} />
-                </span>
-              )}
-            </button>
-          </div>
-        </form>
+        {/* Setup Wizard */}
+        <div className="card">
+          <SetupWizard onSubmit={handleWizardSubmit} isLoading={loading} error={error} />
+        </div>
 
         {/* Recent sessions */}
         {sessionHistory.length > 0 && (

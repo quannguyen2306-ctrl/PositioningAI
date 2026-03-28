@@ -5,7 +5,7 @@ Response models for analysis endpoints.
 """
 
 from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional
 from enum import Enum
 
 
@@ -38,6 +38,7 @@ class AnalysisResult(BaseModel):
     interps: list
     recs: dict
     multi_engine: Optional[dict] = None
+    schema_audit: Optional[dict] = None
 
 
 class AnalysisResponse(BaseModel):

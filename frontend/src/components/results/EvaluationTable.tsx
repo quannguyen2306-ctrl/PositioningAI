@@ -123,6 +123,21 @@ export function EvaluationTable({ evalData }: EvaluationTableProps) {
                     <p className="text-text-primary text-sm leading-relaxed">{result.key_observation}</p>
                   </div>
 
+                  {result.competitor_domains_mentioned && result.competitor_domains_mentioned.length > 0 && (
+                    <div>
+                      <p className="text-2xs uppercase tracking-widest text-text-muted mb-1">
+                        Competitor Domains Mentioned
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {result.competitor_domains_mentioned.map((domain, idx) => (
+                          <span key={idx} className="text-2xs px-2 py-1 bg-raised border border-subtle text-text-secondary rounded">
+                            {domain}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-3 pt-1">
                     <span className="text-2xs text-text-muted capitalize">
                       Mention: <span className="text-text-secondary">{result.mention_quality}</span>

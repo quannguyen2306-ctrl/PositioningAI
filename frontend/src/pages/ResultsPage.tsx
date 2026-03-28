@@ -16,6 +16,8 @@ import { EvaluationTable } from '../components/results/EvaluationTable'
 import { PCAViz } from '../components/results/PCAViz'
 import { RecommendationsList } from '../components/results/RecommendationsList'
 import { MultiEngineComparison } from '../components/results/MultiEngineComparison'
+import { SchemaAuditResults } from '../components/results/SchemaAuditResults'
+import TutorialOverlay from '../components/TutorialOverlay'
 import type { NavSection } from '../components/dashboard/Sidebar'
 
 type Tab = 'map' | 'eval' | 'recommendations'
@@ -154,6 +156,8 @@ export default function ResultsPage() {
         onMenuClick={() => setSidebarOpen(true)}
       />
 
+      <TutorialOverlay />
+
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           activeSection={activeSection}
@@ -236,7 +240,12 @@ export default function ResultsPage() {
               />
             )}
             {activeSection === 'evaluation' && (
-              <EvaluationTable evalData={results.eval} />
+              <div className="space-y-5">
+                <EvaluationTable evalData={results.eval} />
+                {results.schema_audit && (
+                  <SchemaAuditResults audit={results.schema_audit} />
+                )}
+              </div>
             )}
             {activeSection === 'positioning' && (
               <PCAViz

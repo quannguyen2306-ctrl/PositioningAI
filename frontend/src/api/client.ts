@@ -6,6 +6,7 @@ import type {
   Recommendations,
   CompDoc,
   MultiEngineResult,
+  SchemaAuditResult,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
@@ -26,6 +27,7 @@ export interface SseCallbacks {
   onSessionId: (sessionId: string) => void
   onRecommendations: (recs: Recommendations) => void
   onMultiEngine: (data: MultiEngineResult) => void
+  onSchemaAudit: (data: SchemaAuditResult) => void
   onComplete: () => void
   onError: (msg: string) => void
 }
@@ -137,6 +139,9 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
                 break
               case 'multi_engine':
                 callbacks.onMultiEngine(payload.data as MultiEngineResult)
+                break
+              case 'schema_audit':
+                callbacks.onSchemaAudit(payload.data as SchemaAuditResult)
                 break
               case 'complete':
                 callbacks.onComplete()

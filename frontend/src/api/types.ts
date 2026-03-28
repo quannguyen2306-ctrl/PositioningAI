@@ -31,6 +31,7 @@ export interface EvalResult {
   user_chunk_count: number;
   comp_chunk_count: number;
   is_blue_ocean?: boolean;
+  competitor_domains_mentioned?: string[];
 }
 
 export interface EvalSummary {
@@ -119,6 +120,21 @@ export interface MultiEngineResult {
   cross_engine_avg: number;
 }
 
+export interface SchemaPresence {
+  schema_type: string
+  found: boolean
+  field_count: number
+  missing_fields: string[]
+}
+
+export interface SchemaAuditResult {
+  url: string
+  schemas_found: SchemaPresence[]
+  overall_completeness: number  // 0.0–1.0
+  recommendations: string[]
+  raw_schemas: Record<string, unknown>[]
+}
+
 export interface AnalysisResult {
   biz: BusinessProfile;
   comp_docs: CompDoc[];
@@ -128,6 +144,7 @@ export interface AnalysisResult {
   interps: PcaInterpretation[];
   recs: Recommendations;
   multi_engine?: MultiEngineResult;
+  schema_audit?: SchemaAuditResult;
 }
 
 export interface ProgressEvent {

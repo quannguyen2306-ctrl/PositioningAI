@@ -1,5 +1,6 @@
 import { Trash2, RotateCcw, Clock } from 'lucide-react'
 import type { SessionRecord } from '../../../hooks/useSessionStorage'
+import { HistoryChart } from '../HistoryChart'
 
 interface HistoryPanelProps {
   sessions: SessionRecord[]
@@ -47,52 +48,58 @@ export function HistoryPanel({ sessions, onRestore, onDelete, onClearAll }: Hist
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-bold text-text-primary">Session History</h2>
-        <button
-          onClick={handleClearAll}
-          className="text-xs font-body text-text-muted hover:text-score-low transition-colors px-2.5 py-1.5 rounded-md hover:bg-score-low/10"
-        >
-          Clear All
-        </button>
-      </div>
+    <div className="space-y-6">
+      {/* Trend Chart */}
+      <HistoryChart sessions={sessions} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {sessions.map((s) => (
-          <div key={s.id} className="card-raised p-4 flex flex-col gap-3">
-            <div>
-              <p className="text-sm font-mono text-text-secondary break-all leading-snug">
-                {truncateUrl(s.businessUrl)}
-              </p>
-              <p className="text-xs text-text-muted mt-1">{formatTs(s.timestamp)}</p>
-            </div>
+      {/* Session List */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-xl font-bold text-text-primary">Session History</h2>
+          <button
+            onClick={handleClearAll}
+            className="text-xs font-body text-text-muted hover:text-score-low transition-colors px-2.5 py-1.5 rounded-md hover:bg-score-low/10"
+          >
+            Clear All
+          </button>
+        </div>
 
-            <div className="flex items-baseline gap-1">
-              <span className={`font-mono text-xl font-semibold ${scoreColor(s.overallScore)}`}>
-                {s.overallScore.toFixed(1)}
-              </span>
-              <span className="text-xs text-text-muted">/10 visibility</span>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {sessions.map((s) => (
+            <div key={s.id} className="card-raised p-4 flex flex-col gap-3">
+              <div>
+                <p className="text-sm font-mono text-text-secondary break-all leading-snug">
+                  {truncateUrl(s.businessUrl)}
+                </p>
+                <p className="text-xs text-text-muted mt-1">{formatTs(s.timestamp)}</p>
+              </div>
 
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => onRestore(s)}
-                className="flex-1 btn-accent py-1.5 text-xs rounded-lg flex items-center justify-center gap-1.5"
-              >
-                <RotateCcw size={12} />
-                Restore
-              </button>
-              <button
-                onClick={() => handleDelete(s.id)}
-                className="px-3 py-1.5 rounded-lg text-text-muted hover:text-score-low hover:bg-score-low/10 transition-colors"
-                aria-label="Delete session"
-              >
-                <Trash2 size={14} />
-              </button>
+              <div className="flex items-baseline gap-1">
+                <span className={`font-mono text-xl font-semibold ${scoreColor(s.overallScore)}`}>
+                  {s.overallScore.toFixed(1)}
+                </span>
+                <span className="text-xs text-text-muted">/10 visibility</span>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => onRestore(s)}
+                  className="flex-1 btn-accent py-1.5 text-xs rounded-lg flex items-center justify-center gap-1.5"
+                >
+                  <RotateCcw size={12} />
+                  Restore
+                </button>
+                <button
+                  onClick={() => handleDelete(s.id)}
+                  className="px-3 py-1.5 rounded-lg text-text-muted hover:text-score-low hover:bg-score-low/10 transition-colors"
+                  aria-label="Delete session"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )

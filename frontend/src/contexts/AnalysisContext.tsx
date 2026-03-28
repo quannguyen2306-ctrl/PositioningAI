@@ -10,6 +10,7 @@ import type {
   ProgressEvent,
   CompDoc,
   MultiEngineResult,
+  SchemaAuditResult,
 } from '../api/types'
 import useSessionStorage from '../hooks/useSessionStorage'
 import type { SessionRecord } from '../hooks/useSessionStorage'
@@ -84,6 +85,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       interps?: PcaInterpretation[]
       recs?: Recommendations
       multi_engine?: MultiEngineResult
+      schema_audit?: SchemaAuditResult
     } = {}
 
     const abort = streamAnalysis(req, {
@@ -119,6 +121,10 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         acc.multi_engine = data
       },
 
+      onSchemaAudit: (data) => {
+        acc.schema_audit = data
+      },
+
       onComplete: () => {
         setProgress({ percent: 100, message: 'Ocean mapped!', status: 'completed' })
         if (acc.biz && acc.eval && acc.coords && acc.recs) {
@@ -131,9 +137,10 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
             interps: acc.interps ?? [],
             recs: acc.recs,
             multi_engine: acc.multi_engine,
+            schema_audit: acc.schema_audit,
           }
           setResults(result)
-          saveSession(sid, req.url, acc.eval.avg_visibility_score, result)
+          saveSession(sid, req.url, acc.eval.avg_visibility_score, result, req)
         }
       },
 
@@ -171,7 +178,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     setResults(record.results)
     setProgress(null)
     setError(null)
-    setAnalysisRequest(null)
+    setAnalysisRequest(record.analysisRequest ?? null)
     setContentLabResult(null)
     setContentLabError(null)
   }, [])

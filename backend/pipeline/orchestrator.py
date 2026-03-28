@@ -18,7 +18,7 @@ Pipeline stages:
 from openai import OpenAI
 from sklearn.preprocessing import StandardScaler
 
-from .ingestion import fetch_url, chunk_text, extract_business_context
+from .ingestion import fetch_url, fetch_url_with_html, chunk_text, extract_business_context
 from .retrieval import search_competitors, fetch_competitor_docs
 from .embeddings import EmbeddingStore
 from .rag_evaluator import generate_test_questions, run_evaluation
@@ -26,6 +26,7 @@ from .pca_visualizer import fit_pca, interpret_dimensions, plot_2d, plot_3d
 from .recommender import generate_recommendations
 from .multi_engine import run_multi_engine_evaluation
 from .blue_ocean import classify_archetype, find_blue_ocean_zones
+from .schema_auditor import audit_schema_markup
 
 
 class AnalysisPipeline:
@@ -65,7 +66,9 @@ class AnalysisPipeline:
         # Pipeline outputs
         self.business_context = None
         self.user_text = None
+        self.user_html = None
         self.competitor_docs = None
+        self.schema_audit = None
         self.store = None
         self.eval_results = None
         self.multi_engine_results = None
@@ -97,19 +100,38 @@ class AnalysisPipeline:
         Execute the full 9-stage pipeline.
         Returns: dict with all results and visualizations.
         """
-        total_stages = 10
+        total_stages = 11
 
         # --- Stage 1: Fetch user URL ---
         self._report_progress(1, total_stages, "Fetching your business website...")
-        self.user_text = fetch_url(self.business_url)
+        self.user_text, self.user_html = fetch_url_with_html(self.business_url)
 
-        # --- Stage 2: Extract business context ---
-        self._report_progress(2, total_stages, "Extracting business information...")
+        # --- Stage 1.5: Audit schema.org markup ---
+        self._report_progress(2, total_stages, "Auditing structured data markup...")
+        self.schema_audit = audit_schema_markup(self.user_html, self.business_url)
+        schema_audit_dict = {
+            "url": self.schema_audit.url,
+            "schemas_found": [
+                {
+                    "schema_type": s.schema_type,
+                    "found": s.found,
+                    "field_count": s.field_count,
+                    "missing_fields": s.missing_fields,
+                }
+                for s in self.schema_audit.schemas_found
+            ],
+            "overall_completeness": self.schema_audit.overall_completeness,
+            "recommendations": self.schema_audit.recommendations,
+        }
+        self._emit("schema_audit", schema_audit_dict)
+
+        # --- Stage 3: Extract business context ---
+        self._report_progress(3, total_stages, "Extracting business information...")
         self.business_context = extract_business_context(self.user_text, self.openai_client)
         self._emit("profile", {"data": self.business_context})
 
-        # --- Stage 3: Search for competitors ---
-        self._report_progress(3, total_stages, "Searching for competitors...")
+        # --- Stage 4: Search for competitors ---
+        self._report_progress(4, total_stages, "Searching for competitors...")
         search_query = self.business_context.get("search_query", "")
         competitor_urls = search_competitors(
             search_query,
@@ -118,19 +140,19 @@ class AnalysisPipeline:
         )
         self._emit("competitors", {"competitors": competitor_urls})
 
-        # --- Stage 4: Fetch competitor documents ---
-        self._report_progress(4, total_stages, f"Fetching {len(competitor_urls)} competitor websites...")
+        # --- Stage 5: Fetch competitor documents ---
+        self._report_progress(5, total_stages, f"Fetching {len(competitor_urls)} competitor websites...")
         self.competitor_docs = fetch_competitor_docs(competitor_urls)
 
-        # --- Stage 5: Chunk documents ---
-        self._report_progress(5, total_stages, "Chunking documents...")
+        # --- Stage 6: Chunk documents ---
+        self._report_progress(6, total_stages, "Chunking documents...")
         user_chunks = chunk_text(self.user_text)
         comp_chunks_map = {
             doc["url"]: chunk_text(doc["text"]) for doc in self.competitor_docs
         }
 
-        # --- Stage 6: Embed and store ---
-        self._report_progress(6, total_stages, "Building semantic embeddings...")
+        # --- Stage 7: Embed and store ---
+        self._report_progress(7, total_stages, "Building semantic embeddings...")
         self.store = EmbeddingStore(self.openai_client)
 
         self.store.store(
@@ -149,8 +171,8 @@ class AnalysisPipeline:
                 domain=doc.get("domain", ""),
             )
 
-        # --- Stage 7: Generate test questions ---
-        self._report_progress(7, total_stages, "Generating test questions...")
+        # --- Stage 8: Generate test questions ---
+        self._report_progress(8, total_stages, "Generating test questions...")
         self.test_questions = generate_test_questions(
             self.business_context,
             self.openai_client,
@@ -160,8 +182,8 @@ class AnalysisPipeline:
         self.test_questions = self.test_questions[:self.n_questions]
         self._emit("questions", {"questions": self.test_questions})
 
-        # --- Stage 8: Run RAG evaluation (parallel) ---
-        self._report_progress(8, total_stages, "Evaluating visibility in AI responses...")
+        # --- Stage 9: Run RAG evaluation (parallel) ---
+        self._report_progress(9, total_stages, "Evaluating visibility in AI responses...")
         self.eval_results = run_evaluation(
             self.test_questions,
             self.store,
@@ -176,7 +198,7 @@ class AnalysisPipeline:
         }
         self._emit("eval", {"eval": eval_for_sse})
 
-        # --- Stage 9: Multi-engine evaluation ---
+        # --- Stage 10: Multi-engine evaluation ---
         api_keys = {
             "openai": self.openai_api_key,
             "anthropic": self.anthropic_api_key,
@@ -186,7 +208,7 @@ class AnalysisPipeline:
         # Only run if at least one engine key is available
         has_engine_keys = any(api_keys.get(k) for k in api_keys)
         if has_engine_keys:
-            self._report_progress(9, total_stages, "Testing across AI engines...")
+            self._report_progress(10, total_stages, "Testing across AI engines...")
             self.multi_engine_results = run_multi_engine_evaluation(
                 self.test_questions,
                 self.business_context.get("business_name", "Your Business"),
@@ -196,10 +218,10 @@ class AnalysisPipeline:
             )
             self._emit("multi_engine", {"data": self.multi_engine_results})
         else:
-            self._report_progress(9, total_stages, "Skipping multi-engine test (no extra API keys)...")
+            self._report_progress(10, total_stages, "Skipping multi-engine test (no extra API keys)...")
 
-        # --- Stage 10: PCA + recommendations ---
-        self._report_progress(10, total_stages, "Analyzing competitive positioning...")
+        # --- Stage 11: PCA + recommendations ---
+        self._report_progress(11, total_stages, "Analyzing competitive positioning...")
         embeddings, metadata = self.store.get_all_for_pca()
         self.pca_metadata = metadata
 
@@ -266,8 +288,26 @@ class AnalysisPipeline:
 
     def _compile_results(self) -> dict:
         """Compile all results into a structured output dict."""
+        schema_audit_dict = None
+        if self.schema_audit:
+            schema_audit_dict = {
+                "url": self.schema_audit.url,
+                "schemas_found": [
+                    {
+                        "schema_type": s.schema_type,
+                        "found": s.found,
+                        "field_count": s.field_count,
+                        "missing_fields": s.missing_fields,
+                    }
+                    for s in self.schema_audit.schemas_found
+                ],
+                "overall_completeness": self.schema_audit.overall_completeness,
+                "recommendations": self.schema_audit.recommendations,
+            }
+
         return {
             "business_context": self.business_context,
+            "schema_audit": schema_audit_dict,
             "eval_results": self.eval_results,
             "multi_engine_results": self.multi_engine_results,
             "interpretations": self.interpretations,
@@ -280,7 +320,7 @@ class AnalysisPipeline:
             ),
             "archetype": self.archetype,
             "blue_ocean_zones": self.blue_ocean_zones,
-            "blue_ocean_opportunities": self.eval_results.get("blue_ocean_opportunities", []),
+            "blue_ocean_opportunities": self.eval_results.get("blue_ocean_opportunities", []) if self.eval_results else [],
         }
 
     def get_pipeline_data_for_content_lab(self) -> dict:
