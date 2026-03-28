@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { Eye, Cpu, Waves, Compass, FlaskConical } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
 import type { SessionRecord } from '../contexts/AnalysisContext'
+import type { ProgressEvent } from '../api/types'
 import { DashHeader } from '../components/dashboard/DashHeader'
 import { Sidebar } from '../components/dashboard/Sidebar'
 import { HeroMetrics } from '../components/dashboard/HeroMetrics'
+import ScoreExplainer from '../components/dashboard/ScoreExplainer'
+import LoadingStages from '../components/dashboard/LoadingStages'
 import { OverviewPanel } from '../components/dashboard/panels/OverviewPanel'
 import { SettingsPanel } from '../components/dashboard/panels/SettingsPanel'
 import { HistoryPanel } from '../components/dashboard/panels/HistoryPanel'
@@ -109,7 +112,7 @@ export default function ResultsPage() {
 
   // Loading state
   if (!results && progress) {
-    return <LoadingView progress={progress.percent} message={progress.message} />
+    return <LoadingView progress={progress} />
   }
 
   if (error) {
@@ -172,6 +175,14 @@ export default function ResultsPage() {
             highCount={highCount}
             competitorCount={competitorCount}
           />
+          <div className="px-5">
+            <ScoreExplainer
+              avgScore={visibilityScore}
+              mentionRate={mentionRate}
+              topCompetitors={topDomains}
+              executiveSummary={results.recs.executive_summary}
+            />
+          </div>
         </main>
 
         <aside style={{
@@ -505,7 +516,9 @@ export default function ResultsPage() {
   )
 }
 
-function LoadingView({ progress, message }: { progress: number; message: string }) {
+import type { ProgressEvent } from '../api/types'
+
+function LoadingView({ progress }: { progress: ProgressEvent }) {
   const BUBBLES = Array.from({ length: 12 }, (_, i) => ({
     id: i,
     left: `${5 + (i * 8.1) % 90}%`,
@@ -522,19 +535,24 @@ function LoadingView({ progress, message }: { progress: number; message: string 
         ))}
       </div>
 
-      <div className="glass glow-blue" style={{ padding: '40px', maxWidth: 420, textAlign: 'center', zIndex: 1 }}>
+      <div className="glass glow-blue" style={{ padding: '40px', maxWidth: 680, textAlign: 'center', zIndex: 1, maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="animate-float" style={{ marginBottom: 16, color: 'var(--color-secondary)' }}><Waves size={52} strokeWidth={1.2} /></div>
         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
           Mapping the Ocean
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
-          {message || 'Analyzing the competitive landscape…'}
+          {progress.message || 'Analyzing the competitive landscape…'}
         </div>
+
+        <div style={{ marginBottom: 28 }}>
+          <LoadingStages progress={progress} />
+        </div>
+
         <div className="ocean-progress-track" style={{ marginBottom: 12 }}>
-          <div className="ocean-progress-bar" style={{ width: `${progress}%` }} />
+          <div className="ocean-progress-bar" style={{ width: `${progress.percent}%` }} />
         </div>
         <div style={{ fontSize: 12, color: 'var(--glow-blue)', fontFamily: 'var(--font-body)' }}>
-          {progress}%
+          {progress.percent}%
         </div>
         <div style={{ marginTop: 20, fontSize: 11, color: 'var(--text-dim)' }}>
           Questions evaluated in parallel — faster than traditional sequential analysis
