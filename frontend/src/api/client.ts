@@ -23,6 +23,7 @@ export interface SseCallbacks {
   onPca: (points: PcaPoint[], interpretations: PcaInterpretation[]) => void
   onArchetype: (archetype: Archetype) => void
   onBlueOcean: (zones: BlueOceanZone[], opportunities: BlueOceanOpportunity[]) => void
+  onSessionId: (sessionId: string) => void
   onRecommendations: (recs: Recommendations) => void
   onMultiEngine: (data: MultiEngineResult) => void
   onComplete: () => void
@@ -32,18 +33,6 @@ export interface SseCallbacks {
 /** Opens an SSE stream to /analyse/stream and fires callbacks as events arrive.
  *  Returns an abort function to cancel the stream. */
 export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): () => void {
-  const params = new URLSearchParams({
-    url: req.url,
-    openai_key: req.openai_key,
-    serper_key: req.serper_key,
-    n_competitors: String(req.n_competitors),
-    n_questions: String(req.n_questions),
-    custom_questions: (req.custom_questions ?? []).join('||'),
-    google_key: req.google_key ?? '',
-    anthropic_key: req.anthropic_key ?? '',
-    perplexity_key: req.perplexity_key ?? '',
-  })
-
   const controller = new AbortController()
 
   let stallTimer: ReturnType<typeof setTimeout> | null = null
@@ -63,7 +52,22 @@ export function streamAnalysis(req: AnalysisRequest, callbacks: SseCallbacks): (
     }
   }
 
-  fetch(`${BASE}/analyse/stream?${params}`, { signal: controller.signal })
+  fetch(`${BASE}/analyse/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: controller.signal,
+    body: JSON.stringify({
+      url: req.url,
+      openai_key: req.openai_key,
+      serper_key: req.serper_key,
+      n_competitors: req.n_competitors,
+      n_questions: req.n_questions,
+      custom_questions: (req.custom_questions ?? []).join('||'),
+      google_key: req.google_key ?? '',
+      anthropic_key: req.anthropic_key ?? '',
+      perplexity_key: req.perplexity_key ?? '',
+    }),
+  })
     .then(async (res) => {
       if (!res.ok || !res.body) {
         callbacks.onError(`Server error: ${res.status} ${res.statusText}`)

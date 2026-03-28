@@ -111,6 +111,10 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         acc.blue_ocean_opportunities = opportunities
       },
 
+      onSessionId: (sessionId) => {
+        setBackendSessionId(sessionId)
+      },
+
       onMultiEngine: (data) => {
         acc.multi_engine = data
       },

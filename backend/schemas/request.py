@@ -26,7 +26,7 @@ class ContentLabRequest(BaseModel):
     """Request to re-evaluate new content in an existing session."""
 
     session_id: str
-    new_content: str
+    new_content: str = Field(..., max_length=50000)
     openai_key: str
 
 

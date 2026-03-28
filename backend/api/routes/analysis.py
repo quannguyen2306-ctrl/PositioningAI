@@ -14,7 +14,7 @@ import json
 import logging
 import numpy as np
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
 from schemas.request import AnalysisRequest, ContentLabRequest, RecommendationRequest
@@ -41,18 +41,8 @@ class _NumpyEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-@router.get("/analyse/stream")
-async def stream_analysis(
-    url: str = Query(...),
-    openai_key: str = Query(...),
-    serper_key: str = Query(...),
-    n_competitors: int = Query(5),
-    n_questions: int = Query(10),
-    custom_questions: str = Query(""),
-    google_key: str = Query(""),
-    anthropic_key: str = Query(""),
-    perplexity_key: str = Query(""),
-):
+@router.post("/analyse/stream")
+async def stream_analysis(request: AnalysisRequest):
     """
     SSE endpoint: runs the full analysis pipeline and streams events.
     Events: progress, profile, competitors, questions, eval, pca,
@@ -64,7 +54,7 @@ async def stream_analysis(
     def emit(event: dict):
         loop.call_soon_threadsafe(queue.put_nowait, event)
 
-    parsed_questions = [q for q in custom_questions.split("||") if q] if custom_questions else None
+    parsed_questions = request.custom_questions
 
     # Generate a session ID so Content Lab can reference this run
     session_id = store.create_session()
@@ -72,17 +62,17 @@ async def stream_analysis(
     def run():
         try:
             pipeline = AnalysisPipeline(
-                business_url=url,
-                openai_api_key=openai_key,
-                serper_api_key=serper_key,
-                n_competitors=n_competitors,
-                n_questions=n_questions,
+                business_url=str(request.url),
+                openai_api_key=request.openai_key,
+                serper_api_key=request.serper_key,
+                n_competitors=request.n_competitors,
+                n_questions=request.n_questions,
                 custom_questions=parsed_questions,
                 progress_callback=lambda pct, step: emit({"event": "progress", "pct": pct, "step": step}),
                 event_callback=emit,
-                google_api_key=google_key,
-                anthropic_api_key=anthropic_key,
-                perplexity_api_key=perplexity_key,
+                google_api_key=request.google_key or "",
+                anthropic_api_key=request.anthropic_key or "",
+                perplexity_api_key=request.perplexity_key or "",
             )
             result = pipeline.run()
             store.set_result(session_id, result)
@@ -90,8 +80,8 @@ async def stream_analysis(
             store.set_pipeline_data(session_id, pipeline.get_pipeline_data_for_content_lab())
             # Emit session_id so frontend can store it for Content Lab calls
             emit({"event": "session_id", "session_id": session_id})
-        except Exception:
-            logger.error("SSE pipeline error", exc_info=True)
+        except Exception as e:
+            logger.error("SSE pipeline error: %s", type(e).__name__, exc_info=True)
             emit({"event": "error", "message": "Analysis failed. Please try again."})
         finally:
             loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
@@ -149,8 +139,8 @@ async def start_analysis(request: AnalysisRequest):
             store.set_result(session_id, result)
             store.set_pipeline_data(session_id, pipeline.get_pipeline_data_for_content_lab())
         except Exception as e:
-            logger.error("Pipeline error for session %s", session_id, exc_info=True)
-            store.set_error(session_id, str(e))
+            logger.error("Pipeline error for session %s: %s", session_id, type(e).__name__, exc_info=True)
+            store.set_error(session_id, "Analysis failed. Please check your inputs and API keys.")
 
     loop.run_in_executor(None, run)
 
@@ -475,8 +465,8 @@ async def websocket_analysis(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         pass
-    except Exception:
-        logger.error("WebSocket handler error for session %s", session_id, exc_info=True)
+    except Exception as e:
+        logger.error("WebSocket handler error for session %s: %s", session_id, type(e).__name__, exc_info=True)
         try:
             await websocket.send_json({
                 "type": "error",

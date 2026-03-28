@@ -16,9 +16,12 @@ All questions are evaluated in parallel using ThreadPoolExecutor for speed.
 """
 
 import json
+import logging
 import concurrent.futures
 from openai import OpenAI
 from .embeddings import EmbeddingStore
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +78,11 @@ def generate_test_questions(
         temperature=0.7,
     )
 
-    data = json.loads(resp.choices[0].message.content)
+    try:
+        data = json.loads(resp.choices[0].message.content or "{}")
+    except json.JSONDecodeError as exc:
+        logger.warning(f"Failed to parse test questions from LLM response: {type(exc).__name__}")
+        return []
 
     # Handle both {"questions": [...]} and bare [...]
     if isinstance(data, list):
@@ -205,7 +212,12 @@ def evaluate_single_question(
         temperature=0.1,
     )
 
-    eval_data = json.loads(eval_resp.choices[0].message.content)
+    try:
+        eval_data = json.loads(eval_resp.choices[0].message.content or "{}")
+    except (json.JSONDecodeError, KeyError) as exc:
+        logger.warning(f"Failed to parse evaluation response: {type(exc).__name__}")
+        eval_data = {}
+
     comp_domains = eval_data.get("competitor_domains_mentioned", [])
     business_mentioned = eval_data.get("business_mentioned", False)
 

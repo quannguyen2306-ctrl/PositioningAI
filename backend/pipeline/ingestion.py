@@ -7,9 +7,12 @@ and uses an LLM to extract structured business context.
 
 import re
 import json
+import logging
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -113,8 +116,9 @@ def extract_business_context(text: str, client: OpenAI) -> dict:
     )
 
     try:
-        return json.loads(response.choices[0].message.content)
+        return json.loads(response.choices[0].message.content or "{}")
     except json.JSONDecodeError:
+        logger.warning("Failed to parse business context from LLM response, using fallback")
         # Fallback with minimal info
         return {
             "business_name": "Unknown Business",

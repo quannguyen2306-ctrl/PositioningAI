@@ -5,8 +5,11 @@ Uses the Serper API to find competitor URLs from a search query,
 then fetches and returns their text content.
 """
 
+import logging
 import requests
 from .ingestion import fetch_url
+
+logger = logging.getLogger(__name__)
 
 SERPER_ENDPOINT = "https://google.serper.dev/search"
 
@@ -74,8 +77,8 @@ def fetch_competitor_docs(
                     "text": text[:max_per_doc],
                     "domain": url.replace("https://", "").replace("http://", "").split("/")[0],
                 })
-        except Exception:
-            # Gracefully skip — many sites block scrapers
+        except Exception as exc:
+            logger.warning(f"Failed to fetch {url}: {type(exc).__name__}")
             continue
 
     return docs

@@ -6,12 +6,12 @@ Configures CORS, routes, background task execution, and uvicorn startup.
 """
 
 import asyncio
+import logging
+from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import HttpUrl
 
 from config import settings
 from schemas.request import AnalysisRequest
@@ -19,17 +19,43 @@ from cache.session_store import store
 from pipeline.orchestrator import AnalysisPipeline
 from api.routes import health, analysis, stream
 
+logger = logging.getLogger(__name__)
+
+# Thread pool for background analysis execution
+executor = ThreadPoolExecutor(max_workers=4)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI lifespan context manager.
+    Handles startup and shutdown events.
+    """
+    # Startup: Schedule periodic cleanup of expired sessions
+    async def _cleanup_loop():
+        while True:
+            await asyncio.sleep(300)  # Run every 5 minutes
+            removed = store.cleanup_expired_sessions(max_age_seconds=3600)
+            if removed > 0:
+                logger.info(f"Cleaned up {removed} expired session(s)")
+
+    asyncio.create_task(_cleanup_loop())
+    yield
+    # Shutdown: (no cleanup needed)
+
+
 # Create FastAPI app
 app = FastAPI(
     title="PositioningAI",
     description="Competitive positioning analysis for AI visibility",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict to your frontend URL
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,9 +65,6 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(analysis.router)
 app.include_router(stream.router)
-
-# Thread pool for background analysis execution
-executor = ThreadPoolExecutor(max_workers=4)
 
 
 def _run_analysis_task(
@@ -86,7 +109,7 @@ def _run_analysis_task(
         store.set_result(session_id, results)
 
     except Exception as e:
-        store.set_error(session_id, str(e))
+        store.set_error(session_id, f"Analysis failed: {type(e).__name__}")
 
 
 @app.post("/api/analysis/start-background")
@@ -120,26 +143,6 @@ async def root():
         "name": "PositioningAI",
         "version": "1.0.0",
         "docs": "/docs",
-    }
-
-
-@app.get("/api/sessions")
-async def list_sessions():
-    """
-    Debug endpoint: list all active sessions.
-    (Remove in production)
-    """
-    # This is a simple debug endpoint; in production, you'd want
-    # to restrict access or remove it entirely.
-    return {
-        "sessions": [
-            {
-                "session_id": session_id,
-                "status": session.get("status"),
-                "percent": session.get("progress", {}).get("percent", 0) if session.get("progress") else 0,
-            }
-            for session_id, session in store._sessions.items()
-        ]
     }
 
 

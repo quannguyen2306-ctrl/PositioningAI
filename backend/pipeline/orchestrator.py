@@ -25,6 +25,7 @@ from .rag_evaluator import generate_test_questions, run_evaluation
 from .pca_visualizer import fit_pca, interpret_dimensions, plot_2d, plot_3d
 from .recommender import generate_recommendations
 from .multi_engine import run_multi_engine_evaluation
+from .blue_ocean import classify_archetype, find_blue_ocean_zones
 
 
 class AnalysisPipeline:
@@ -187,7 +188,7 @@ class AnalysisPipeline:
         if has_engine_keys:
             self._report_progress(9, total_stages, "Testing across AI engines...")
             self.multi_engine_results = run_multi_engine_evaluation(
-                test_questions,
+                self.test_questions,
                 self.business_context.get("business_name", "Your Business"),
                 api_keys,
                 self.openai_client,
@@ -200,6 +201,7 @@ class AnalysisPipeline:
         # --- Stage 10: PCA + recommendations ---
         self._report_progress(10, total_stages, "Analyzing competitive positioning...")
         embeddings, metadata = self.store.get_all_for_pca()
+        self.pca_metadata = metadata
 
         self.pca, self.scaler, self.coords = fit_pca(embeddings, n_components=3)
         self.interpretations = interpret_dimensions(

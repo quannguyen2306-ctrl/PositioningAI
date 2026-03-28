@@ -33,8 +33,8 @@ export default function HomePage() {
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
-    const sk = localStorage.getItem('serper_key') ?? ''
-    const ok = localStorage.getItem('openai_key') ?? ''
+    const sk = sessionStorage.getItem('serper_key') ?? ''
+    const ok = sessionStorage.getItem('openai_key') ?? ''
     if (sk) setSerperKey(sk)
     if (ok) setOpenaiKey(ok)
   }, [])
@@ -45,8 +45,8 @@ export default function HomePage() {
     e.preventDefault()
     if (!canSubmit) return
 
-    localStorage.setItem('openai_key', openaiKey)
-    localStorage.setItem('serper_key', serperKey)
+    sessionStorage.setItem('openai_key', openaiKey)
+    sessionStorage.setItem('serper_key', serperKey)
 
     setLoading(true)
     setError(null)
