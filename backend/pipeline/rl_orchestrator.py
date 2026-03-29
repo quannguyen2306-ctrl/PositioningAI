@@ -180,10 +180,13 @@ class RLOrchestrator:
                         "moved_toward_target": reward_result.moved_toward_target,
                     })
 
-                # Plateau check — stop if we're stuck
-                if len(reward_history) >= 3:
-                    recent = reward_history[-3:]
-                    if max(recent) - min(recent) < self.config.plateau_eps:
+                # Plateau check — only after halfway through, and only if
+                # the last 3 steps produced no improvement over earlier best.
+                min_steps_before_plateau = max(4, self.config.max_steps // 2)
+                if len(reward_history) >= min_steps_before_plateau:
+                    recent_best = max(reward_history[-3:])
+                    earlier_best = max(reward_history[:-3])
+                    if recent_best <= earlier_best + self.config.plateau_eps:
                         stop_reason = "plateau"
                         break
 
