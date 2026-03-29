@@ -1,5 +1,7 @@
 # LLM Visibility Diagnostic
 
+![PositioningAI](assets/thumbnail.png)
+
 > See exactly how AI assistants represent your business — and get a concrete plan to fix it.
 
 ## What it does
