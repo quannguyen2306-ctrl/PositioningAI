@@ -153,6 +153,37 @@ export interface RecommendationResult {
   content_draft: string
 }
 
+// RL content positioning agent
+export interface RLStepEvent {
+  event: 'rl_start' | 'rl_step' | 'rl_complete' | 'rl_error' | 'rl_step_error'
+  episode_id: string
+  step?: number
+  reward?: number
+  cos_sim?: number
+  magnitude?: number
+  vis_score?: number
+  vis_delta?: number
+  pos?: number[]
+  critique?: string
+  draft_preview?: string
+  moved_toward_target?: boolean
+  // rl_start fields
+  initial_pos?: number[]
+  target_pos?: number[]
+  initial_vis?: number
+  few_shot_count?: number
+  max_steps?: number
+  // rl_complete fields
+  best_draft?: string
+  best_reward?: number
+  total_reward?: number
+  steps_taken?: number
+  stop_reason?: string
+  final_pos?: number[]
+  // error
+  message?: string
+}
+
 export type WsEvent =
   | { type: 'heartbeat' }
   | { type: 'progress'; percent: number; message: string }

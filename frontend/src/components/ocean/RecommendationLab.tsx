@@ -11,13 +11,13 @@
  * Content Lab for verification.
  */
 
-import { useState, useEffect } from 'react'
-import { Waves, Target, Compass, FlaskConical } from 'lucide-react'
-import type { BlueOceanZone, PcaInterpretation, RecommendationResult } from '../../api/types'
-import { generateRecommendation } from '../../api/client'
+import { useState, useEffect, useRef } from 'react'
+import { Waves, Target, Compass, FlaskConical, Bot } from 'lucide-react'
+import type { BlueOceanZone, PcaInterpretation, RecommendationResult, RLStepEvent } from '../../api/types'
+import { generateRecommendation, startRLEpisode, streamRLEpisode } from '../../api/client'
 import { useAnalysis } from '../../contexts/AnalysisContext'
 
-type LabMode = 'zones' | 'pick'
+type LabMode = 'zones' | 'pick' | 'rl'
 
 interface Props {
   enabled: boolean
@@ -51,6 +51,12 @@ export default function RecommendationLab({
   const [result, setResult] = useState<RecommendationResult | null>(null)
   const [targetLabel, setTargetLabel] = useState<string>('')
 
+  // RL Agent state
+  const [rlSteps, setRlSteps] = useState<RLStepEvent[]>([])
+  const [rlComplete, setRlComplete] = useState<RLStepEvent | null>(null)
+  const [rlMaxSteps, setRlMaxSteps] = useState(5)
+  const abortRLRef = useRef<(() => void) | null>(null)
+
   const canGenerate = !!backendSessionId && !!userCentroid && !loading
 
   async function generate(targetX: number, targetY: number, label: string) {
@@ -78,13 +84,17 @@ export default function RecommendationLab({
 
   // Trigger generation when user clicks the map in pick-point mode
   useEffect(() => {
-    if (!recommendationTarget || mode !== 'pick') return
+    if (!recommendationTarget) return
     onSetPickMode(false)
-    generate(
-      recommendationTarget.x,
-      recommendationTarget.y,
-      `Point (${recommendationTarget.x.toFixed(2)}, ${recommendationTarget.y.toFixed(2)})`,
-    )
+    if (mode === 'rl') {
+      startRL(recommendationTarget.x, recommendationTarget.y)
+    } else if (mode === 'pick') {
+      generate(
+        recommendationTarget.x,
+        recommendationTarget.y,
+        `Point (${recommendationTarget.x.toFixed(2)}, ${recommendationTarget.y.toFixed(2)})`,
+      )
+    }
   }, [recommendationTarget]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleZoneClick(zone: BlueOceanZone) {
@@ -94,6 +104,42 @@ export default function RecommendationLab({
   function sendToContentLab() {
     if (result?.content_draft) {
       onPrefillContentLab(result.content_draft)
+    }
+  }
+
+  async function startRL(targetX: number, targetY: number) {
+    if (!backendSessionId) return
+    setLoading(true)
+    setError(null)
+    setRlSteps([])
+    setRlComplete(null)
+
+    try {
+      const { episode_id } = await startRLEpisode(
+        backendSessionId,
+        targetX,
+        targetY,
+        openaiKeyRef?.current ?? '',
+        rlMaxSteps,
+      )
+      abortRLRef.current = streamRLEpisode(
+        episode_id,
+        backendSessionId,
+        (event) => {
+          if (event.event === 'rl_step') {
+            setRlSteps(prev => [...prev, event])
+          } else if (event.event === 'rl_complete') {
+            setRlComplete(event)
+          } else if (event.event === 'rl_error') {
+            setError(event.message ?? 'RL episode failed')
+          }
+        },
+        () => setLoading(false),
+        (msg) => { setError(msg); setLoading(false) },
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setLoading(false)
     }
   }
 
@@ -155,20 +201,24 @@ export default function RecommendationLab({
 
           {/* Mode tabs */}
           <div style={{ display: 'flex', gap: 6 }}>
-            {(['zones', 'pick'] as LabMode[]).map(m => (
+            {([
+              { key: 'zones', icon: <Waves size={11} strokeWidth={2} />, label: 'Zones' },
+              { key: 'pick',  icon: <Target size={11} strokeWidth={2} />, label: 'Pick' },
+              { key: 'rl',    icon: <Bot size={11} strokeWidth={2} />, label: 'RL Agent' },
+            ] as { key: LabMode; icon: React.ReactNode; label: string }[]).map(({ key, icon, label }) => (
               <button
-                key={m}
-                onClick={() => { setMode(m); if (m !== 'pick') onSetPickMode(false) }}
+                key={key}
+                onClick={() => { setMode(key); if (key !== 'pick' && key !== 'rl') onSetPickMode(false) }}
                 style={{
                   flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 600,
                   borderRadius: 6, cursor: 'pointer', transition: 'all 0.2s',
-                  background: mode === m ? 'oklch(0.52 0.07 230 / 0.12)' : 'var(--bg-mid)',
-                  border: mode === m ? '1px solid oklch(0.52 0.07 230 / 0.40)' : '1px solid var(--border-subtle)',
-                  color: mode === m ? 'var(--color-secondary)' : 'var(--text-muted)',
+                  background: mode === key ? 'oklch(0.52 0.07 230 / 0.12)' : 'var(--bg-mid)',
+                  border: mode === key ? '1px solid oklch(0.52 0.07 230 / 0.40)' : '1px solid var(--border-subtle)',
+                  color: mode === key ? 'var(--color-secondary)' : 'var(--text-muted)',
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {m === 'zones' ? <><Waves size={11} strokeWidth={2} /> Zones</> : <><Target size={11} strokeWidth={2} /> Pick Point</>}
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  {icon} {label}
                 </span>
               </button>
             ))}
@@ -274,8 +324,133 @@ export default function RecommendationLab({
             </div>
           )}
 
+          {/* RL AGENT mode */}
+          {mode === 'rl' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+                RL AGENT — iteratively optimises content toward your target
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Max steps:</span>
+                {[3, 5, 8].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setRlMaxSteps(n)}
+                    style={{
+                      padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      borderRadius: 6, transition: 'all 0.2s',
+                      background: rlMaxSteps === n ? 'oklch(0.52 0.07 230 / 0.15)' : 'var(--bg-mid)',
+                      border: rlMaxSteps === n ? '1px solid oklch(0.52 0.07 230 / 0.45)' : '1px solid var(--border-subtle)',
+                      color: rlMaxSteps === n ? 'var(--color-secondary)' : 'var(--text-muted)',
+                    }}
+                  >{n}</button>
+                ))}
+              </div>
+              <button
+                onClick={() => onSetPickMode(!pickPointMode)}
+                disabled={!canGenerate}
+                style={{
+                  padding: '10px 14px', cursor: 'pointer', borderRadius: 8,
+                  background: pickPointMode ? 'oklch(0.52 0.07 230 / 0.15)' : 'var(--bg-mid)',
+                  border: pickPointMode ? '1px solid oklch(0.52 0.07 230 / 0.50)' : '1px solid var(--border-subtle)',
+                  color: pickPointMode ? 'var(--color-secondary)' : 'var(--text-muted)',
+                  fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Target size={12} strokeWidth={2} />
+                  {pickPointMode ? 'Click map to set target…' : 'Pick Target on Map'}
+                </span>
+              </button>
+              <div style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+                The agent will generate up to {rlMaxSteps} content drafts, each evaluated and refined toward your target.
+                Each step takes ~15–20 seconds.
+              </div>
+
+              {/* Step progress */}
+              {rlSteps.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>STEPS</div>
+                  {rlSteps.map((s) => {
+                    const reward = s.reward ?? 0
+                    const toward = s.moved_toward_target
+                    return (
+                      <div key={s.step} style={{
+                        padding: '8px 10px',
+                        background: toward ? 'oklch(0.55 0.14 150 / 0.06)' : 'oklch(0.55 0.22 25 / 0.06)',
+                        border: `1px solid ${toward ? 'oklch(0.55 0.14 150 / 0.25)' : 'oklch(0.55 0.22 25 / 0.20)'}`,
+                        borderRadius: 7,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            Step {s.step}
+                          </span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: toward ? 'var(--score-high)' : 'var(--score-low)' }}>
+                            {toward ? '↑' : '↓'} reward {reward.toFixed(3)}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>
+                          vis {s.vis_score?.toFixed(1)}/10
+                          {s.vis_delta !== undefined && (
+                            <span style={{ color: (s.vis_delta ?? 0) >= 0 ? 'var(--score-high)' : 'var(--score-low)' }}>
+                              {' '}({s.vis_delta >= 0 ? '+' : ''}{s.vis_delta?.toFixed(1)})
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.4, fontStyle: 'italic' }}>
+                          {s.critique}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Best draft on completion */}
+              {rlComplete && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--color-secondary)', letterSpacing: '0.08em' }}>
+                    BEST DRAFT — reward {rlComplete.best_reward?.toFixed(3)} · {rlComplete.stop_reason} after {rlComplete.steps_taken} steps
+                  </div>
+                  <div style={{
+                    padding: '10px 12px',
+                    background: 'var(--bg-bottom)',
+                    border: '1px solid oklch(0.52 0.07 230 / 0.25)',
+                    borderRadius: 8,
+                    fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6,
+                    maxHeight: 200, overflowY: 'auto',
+                  }}>
+                    {rlComplete.best_draft}
+                  </div>
+                  <button
+                    onClick={() => rlComplete.best_draft && onPrefillContentLab(rlComplete.best_draft)}
+                    style={{
+                      padding: '9px 14px', cursor: 'pointer', borderRadius: 8,
+                      background: 'oklch(0.52 0.07 230 / 0.10)',
+                      border: '1px solid oklch(0.52 0.07 230 / 0.40)',
+                      color: 'var(--color-secondary)',
+                      fontSize: 12, fontWeight: 700,
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <FlaskConical size={12} strokeWidth={2} /> Send to Content Lab
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Loading */}
-          {loading && (
+          {loading && mode === 'rl' && (
+            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+              <div style={{ marginBottom: 6, color: 'var(--color-secondary)' }} className="animate-float"><Bot size={20} strokeWidth={1.5} /></div>
+              <div style={{ fontSize: 12, color: 'var(--color-secondary)' }}>
+                {rlSteps.length === 0 ? 'Starting RL episode…' : `Running step ${rlSteps.length + 1} of ${rlMaxSteps}…`}
+              </div>
+            </div>
+          )}
+          {loading && mode !== 'rl' && (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
               <div style={{ marginBottom: 8, color: 'var(--color-secondary)' }} className="animate-float"><Compass size={22} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 12, color: 'var(--color-secondary)' }}>Charting your course…</div>

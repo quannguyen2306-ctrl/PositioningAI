@@ -171,6 +171,73 @@ export function urlsToCompDocs(urls: string[]): CompDoc[] {
   })
 }
 
+/** Start an RL episode to iteratively optimise content toward a target position. */
+export async function startRLEpisode(
+  sessionId: string,
+  targetX: number,
+  targetY: number,
+  openaiKey: string,
+  maxSteps: number = 5,
+): Promise<{ episode_id: string; stream_url: string }> {
+  const res = await fetch(`${BASE}/api/rl/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: sessionId,
+      target_x: targetX,
+      target_y: targetY,
+      openai_key: openaiKey,
+      max_steps: maxSteps,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(err || `RL start error: ${res.status}`)
+  }
+  return res.json()
+}
+
+/** Stream RL episode step events via SSE. Returns an abort function. */
+export function streamRLEpisode(
+  episodeId: string,
+  sessionId: string,
+  onEvent: (event: import('./types').RLStepEvent) => void,
+  onDone: () => void,
+  onError: (msg: string) => void,
+): () => void {
+  const controller = new AbortController()
+
+  fetch(`${BASE}/api/rl/${episodeId}/stream?session_id=${encodeURIComponent(sessionId)}`, {
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok || !res.body) { onError(`Stream error: ${res.status}`); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const frames = buffer.split('\n\n')
+        buffer = frames.pop() ?? ''
+        for (const frame of frames) {
+          const dataLine = frame.split('\n').find(l => l.startsWith('data: '))
+          if (!dataLine) continue
+          try {
+            const payload = JSON.parse(dataLine.slice(6))
+            onEvent(payload)
+            if (payload.event === 'rl_complete' || payload.event === 'rl_error') onDone()
+          } catch { /* ignore malformed frames */ }
+        }
+      }
+      onDone()
+    })
+    .catch((err: Error) => { if (err.name !== 'AbortError') onError(String(err)) })
+
+  return () => controller.abort()
+}
+
 /** Generate targeted content recommendations toward a chosen map position. */
 export async function generateRecommendation(
   sessionId: string,
