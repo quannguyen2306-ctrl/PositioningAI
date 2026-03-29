@@ -20,6 +20,7 @@ from sklearn.preprocessing import StandardScaler
 
 from .ingestion import fetch_url, chunk_text, extract_business_context
 from .retrieval import search_competitors, fetch_competitor_docs
+from cache.competitor_cache import get_cached_competitors, save_competitors
 from .embeddings import EmbeddingStore
 from .rag_evaluator import generate_test_questions, run_evaluation
 from .pca_visualizer import fit_pca, interpret_dimensions, plot_2d, plot_3d
@@ -97,14 +98,20 @@ class AnalysisPipeline:
         self.business_context = extract_business_context(self.user_text, self.openai_client)
         self._emit("profile", {"data": self.business_context})
 
-        # --- Stage 3: Search for competitors ---
-        self._report_progress(3, total_stages, "Searching for competitors...")
-        search_query = self.business_context.get("search_query", "")
-        competitor_urls = search_competitors(
-            search_query,
-            self.serper_api_key,
-            n=self.n_competitors,
-        )
+        # --- Stage 3: Search for competitors (use cache for stable PCA) ---
+        cached = get_cached_competitors(self.business_url)
+        if cached:
+            self._report_progress(3, total_stages, "Loading cached competitors for stable map...")
+            competitor_urls = cached
+        else:
+            self._report_progress(3, total_stages, "Searching for competitors...")
+            search_query = self.business_context.get("search_query", "")
+            competitor_urls = search_competitors(
+                search_query,
+                self.serper_api_key,
+                n=self.n_competitors,
+            )
+            save_competitors(self.business_url, competitor_urls)
         self._emit("competitors", {"competitors": competitor_urls})
 
         # --- Stage 4: Fetch competitor documents ---
