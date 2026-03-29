@@ -17,7 +17,7 @@ from config import settings
 from schemas.request import AnalysisRequest
 from cache.session_store import store
 from pipeline.orchestrator import AnalysisPipeline
-from api.routes import health, analysis
+from api.routes import health, analysis, rl
 
 # Create FastAPI app
 app = FastAPI(
@@ -38,6 +38,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router)
 app.include_router(analysis.router)
+app.include_router(rl.router)
 
 # Thread pool for background analysis execution
 executor = ThreadPoolExecutor(max_workers=4)

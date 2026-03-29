@@ -78,6 +78,25 @@ class SessionStore:
         with self._lock:
             self._sessions.pop(session_id, None)
 
+    def set_rl_state(self, session_id: str, rl_state: dict) -> None:
+        """Store RL episode state on the session."""
+        with self._lock:
+            if session_id in self._sessions:
+                self._sessions[session_id]["rl_state"] = rl_state
+
+    def get_rl_state(self, session_id: str) -> Optional[dict]:
+        """Retrieve RL episode state."""
+        with self._lock:
+            session = self._sessions.get(session_id)
+            return session.get("rl_state") if session else None
+
+    def update_rl_status(self, session_id: str, status: str) -> None:
+        """Update only the status field of rl_state."""
+        with self._lock:
+            session = self._sessions.get(session_id)
+            if session and "rl_state" in session:
+                session["rl_state"]["status"] = status
+
     def cleanup_expired_sessions(self, max_age_seconds: int = 3600) -> int:
         """Remove sessions older than max_age_seconds. Returns count removed."""
         now = time.time()
