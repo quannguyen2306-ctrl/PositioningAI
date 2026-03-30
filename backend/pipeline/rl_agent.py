@@ -66,10 +66,15 @@ class RLAgent:
         history: list[RLStepRecord],
         step: int,
         max_steps: int,
+        best_draft: str = "",
+        best_reward: float = -999.0,
+        strategy_hint: str = "",
     ) -> str:
         temperature = self.compute_temperature(step)
         system_prompt = self._build_system_prompt(history)
-        user_message = self._build_user_message(current_pos, step, max_steps)
+        user_message = self._build_user_message(
+            current_pos, step, max_steps, best_draft, best_reward, strategy_hint
+        )
 
         resp = self.client.chat.completions.create(
             model="gpt-4o",
@@ -78,7 +83,7 @@ class RLAgent:
                 {"role": "user", "content": user_message},
             ],
             temperature=temperature,
-            max_tokens=600,
+            max_tokens=1200,
         )
         return resp.choices[0].message.content.strip()
 
@@ -172,7 +177,7 @@ Starting position: {self._describe(self.initial_pos)}
 Target position:   {self._describe(self.target_pos)}
 
 {few_shot_block}{history_block}RULES
-1. Write exactly 250-400 words of prose. No headers, no bullet points.
+1. Write exactly 500-700 words of prose. No headers, no bullet points.
 2. Content must be genuine and useful for this business — not generic filler.
 3. Avoid keyword stuffing. Semantic shift comes from genuine emphasis on certain topics/tones.
 4. Study the history below: if past drafts moved the wrong direction, understand why and correct."""
@@ -182,6 +187,9 @@ Target position:   {self._describe(self.target_pos)}
         current_pos: np.ndarray,
         step: int,
         max_steps: int,
+        best_draft: str = "",
+        best_reward: float = -999.0,
+        strategy_hint: str = "",
     ) -> str:
         dist = float(np.linalg.norm(current_pos - self.target_pos))
         steps_left = max_steps - step
@@ -192,16 +200,32 @@ Target position:   {self._describe(self.target_pos)}
         elif step == 1 and self.few_shot_episodes:
             hint = "\nRefer to the successful examples above to inform your approach."
 
+        # Momentum block: show the best draft as a reference, not a direction to amplify.
+        # The agent should learn WHAT worked (themes, framing) not amplify blindly.
+        momentum_block = ""
+        if best_draft and best_reward > 0.05:
+            momentum_block = (
+                f"\nBEST DRAFT SO FAR (reward: {best_reward:.3f}) — study what made this "
+                f"effective, then write a DIFFERENT draft that targets the same destination "
+                f"from a fresh angle. Do not copy or simply amplify this:\n"
+                f"{best_draft[:600]}\n"
+            )
+
+        strategy_block = f"\n{strategy_hint}\n" if strategy_hint else ""
+
         return (
-            f"Write a NEW content draft for "
+            f"Write a content draft for "
             f"{self.business_context.get('business_name', 'this business')} "
             f"that moves the semantic position toward the target.\n\n"
             f"Current position: {self._describe(current_pos)}\n"
             f"Target position:  {self._describe(self.target_pos)}\n"
             f"Remaining distance: {dist:.2f} units\n"
             f"Steps remaining: {steps_left}"
-            f"{hint}\n\n"
-            f"Return ONLY the content draft. No JSON, no explanation, no headers."
+            f"{hint}"
+            f"{strategy_block}"
+            f"{momentum_block}\n"
+            f"Return ONLY the content draft (500-700 words of prose). "
+            f"No JSON, no explanation, no headers."
         )
 
     def _build_few_shot_block(self) -> str:

@@ -332,19 +332,22 @@ export default function RecommendationLab({
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Max steps:</span>
-                {[3, 5, 8].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setRlMaxSteps(n)}
-                    style={{
-                      padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                      borderRadius: 6, transition: 'all 0.2s',
-                      background: rlMaxSteps === n ? 'oklch(0.52 0.07 230 / 0.15)' : 'var(--bg-mid)',
-                      border: rlMaxSteps === n ? '1px solid oklch(0.52 0.07 230 / 0.45)' : '1px solid var(--border-subtle)',
-                      color: rlMaxSteps === n ? 'var(--color-secondary)' : 'var(--text-muted)',
-                    }}
-                  >{n}</button>
-                ))}
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={rlMaxSteps}
+                  onChange={e => {
+                    const v = parseInt(e.target.value, 10)
+                    if (!isNaN(v)) setRlMaxSteps(v)
+                  }}
+                  onBlur={e => {
+                    const v = parseInt(e.target.value, 10)
+                    setRlMaxSteps(isNaN(v) ? 5 : Math.max(1, Math.min(100, v)))
+                  }}
+                  className="ocean-input"
+                  style={{ width: 64, padding: '4px 8px', fontSize: 12, textAlign: 'center' }}
+                />
               </div>
               <button
                 onClick={() => onSetPickMode(!pickPointMode)}
@@ -367,44 +370,53 @@ export default function RecommendationLab({
                 Each step takes ~15–20 seconds.
               </div>
 
-              {/* Step progress */}
-              {rlSteps.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>STEPS</div>
-                  {rlSteps.map((s) => {
-                    const reward = s.reward ?? 0
-                    const toward = s.moved_toward_target
-                    return (
-                      <div key={s.step} style={{
-                        padding: '8px 10px',
-                        background: toward ? 'oklch(0.55 0.14 150 / 0.06)' : 'oklch(0.55 0.22 25 / 0.06)',
-                        border: `1px solid ${toward ? 'oklch(0.55 0.14 150 / 0.25)' : 'oklch(0.55 0.22 25 / 0.20)'}`,
-                        borderRadius: 7,
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
-                            Step {s.step}
+              {/* Step progress bar */}
+              {rlSteps.length > 0 && (() => {
+                const latest = rlSteps[rlSteps.length - 1]
+                const reward = latest.reward ?? 0
+                const toward = latest.moved_toward_target
+                const pct = Math.min(100, Math.round((rlSteps.length / rlMaxSteps) * 100))
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {/* Bar label */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.07em' }}>
+                      <span>STEP {rlSteps.length} / {rlMaxSteps}</span>
+                      <span style={{ color: toward ? 'var(--score-high)' : 'var(--score-low)', fontWeight: 700 }}>
+                        {toward ? '↑' : '↓'} {reward.toFixed(3)}
+                      </span>
+                    </div>
+                    {/* Track */}
+                    <div style={{ height: 7, borderRadius: 99, background: 'oklch(0.52 0.07 230 / 0.10)', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${pct}%`,
+                        borderRadius: 99,
+                        background: 'linear-gradient(90deg, var(--color-primary), var(--color-secondary))',
+                        transition: 'width 0.4s ease',
+                      }} />
+                    </div>
+                    {/* Latest step info */}
+                    <div style={{
+                      padding: '7px 10px',
+                      background: toward ? 'oklch(0.55 0.14 150 / 0.06)' : 'oklch(0.55 0.22 25 / 0.06)',
+                      border: `1px solid ${toward ? 'oklch(0.55 0.14 150 / 0.22)' : 'oklch(0.55 0.22 25 / 0.18)'}`,
+                      borderRadius: 7,
+                    }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>
+                        vis {latest.vis_score?.toFixed(1)}/10
+                        {latest.vis_delta !== undefined && (
+                          <span style={{ color: (latest.vis_delta ?? 0) >= 0 ? 'var(--score-high)' : 'var(--score-low)' }}>
+                            {' '}({latest.vis_delta >= 0 ? '+' : ''}{latest.vis_delta?.toFixed(1)})
                           </span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: toward ? 'var(--score-high)' : 'var(--score-low)' }}>
-                            {toward ? '↑' : '↓'} reward {reward.toFixed(3)}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>
-                          vis {s.vis_score?.toFixed(1)}/10
-                          {s.vis_delta !== undefined && (
-                            <span style={{ color: (s.vis_delta ?? 0) >= 0 ? 'var(--score-high)' : 'var(--score-low)' }}>
-                              {' '}({s.vis_delta >= 0 ? '+' : ''}{s.vis_delta?.toFixed(1)})
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.4, fontStyle: 'italic' }}>
-                          {s.critique}
-                        </div>
+                        )}
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                      <div style={{ fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.4, fontStyle: 'italic' }}>
+                        {latest.critique}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Best draft on completion */}
               {rlComplete && (

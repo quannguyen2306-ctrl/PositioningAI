@@ -22,6 +22,7 @@ from fastapi.responses import StreamingResponse
 from schemas.rl_schemas import RLStartRequest, RLStatusResponse, RLStepDetail
 from cache.session_store import store
 from cache.episode_store import episode_store
+from cache.nn_model_store import load_nn_policy, save_nn_policy
 from pipeline.rl_orchestrator import RLOrchestrator, RLConfig
 
 logger = logging.getLogger(__name__)
@@ -75,11 +76,16 @@ async def rl_start(req: RLStartRequest):
                 max_steps=req.max_steps,
                 proximity_threshold=req.proximity_threshold,
             )
+
+            # Load NN policy if requested
+            nn_policy = load_nn_policy() if req.use_nn_agent else None
+
             orchestrator = RLOrchestrator(
                 pipeline_data=pipeline_data,
                 openai_client=client,
                 episode_id=episode_id,
                 config=config,
+                nn_policy=nn_policy,
             )
 
             def emit(event: dict):
@@ -92,6 +98,10 @@ async def rl_start(req: RLStartRequest):
                     _update_rl_state_from_event(req.session_id, event)
 
             orchestrator.run_episode(target_pos=target_pos, event_callback=emit)
+
+            # Save updated NN weights after episode
+            if nn_policy is not None:
+                save_nn_policy(nn_policy)
 
         except Exception as exc:
             logger.error("RL episode error: %s", exc, exc_info=True)

@@ -18,6 +18,7 @@ from openai import OpenAI
 from pipeline.rl_reward import compute_reward, is_converged
 from pipeline.rl_env import RLEnvironment
 from pipeline.rl_agent import RLAgent, RLStepRecord
+from pipeline.nn_policy import NNPolicy, TrajectoryStep, build_state
 from cache.episode_store import (
     episode_store,
     EpisodeRecord,
@@ -51,11 +52,13 @@ class RLOrchestrator:
         openai_client: OpenAI,
         episode_id: str,
         config: RLConfig = None,
+        nn_policy: NNPolicy | None = None,
     ):
         self.pipeline_data = pipeline_data
         self.client = openai_client
         self.episode_id = episode_id
         self.config = config or RLConfig()
+        self.nn_policy = nn_policy
 
     def run_episode(
         self,
@@ -100,6 +103,7 @@ class RLOrchestrator:
         current_vis = initial_vis
         reward_history: list[float] = []
         stop_reason = "max_steps"
+        nn_trajectory: list[TrajectoryStep] = []
 
         if event_callback:
             event_callback({
@@ -119,8 +123,22 @@ class RLOrchestrator:
                 break
 
             try:
-                # Generate content draft
-                draft = agent.generate(current_pos, history, step, self.config.max_steps)
+                # NN policy selects strategy (if enabled)
+                nn_action, nn_log_prob, strategy_hint = None, 0.0, ""
+                if self.nn_policy is not None:
+                    state_vec = build_state(
+                        current_pos, target_pos, current_vis,
+                        initial_dist, step, self.config.max_steps,
+                    )
+                    nn_action, nn_log_prob = self.nn_policy.select_action(state_vec)
+                    strategy_hint = self.nn_policy.get_strategy_instruction(nn_action)
+
+                # Generate content draft (pass best so far for momentum)
+                draft = agent.generate(
+                    current_pos, history, step, self.config.max_steps,
+                    best_draft=best_draft, best_reward=best_reward,
+                    strategy_hint=strategy_hint,
+                )
 
                 # Evaluate in environment (re-embed + frozen PCA + RAG)
                 step_result = env.step(draft)
@@ -155,6 +173,15 @@ class RLOrchestrator:
                 )
                 history.append(record)
                 reward_history.append(reward_result.reward)
+
+                # Record NN trajectory step
+                if self.nn_policy is not None and nn_action is not None:
+                    nn_trajectory.append(TrajectoryStep(
+                        state=state_vec,
+                        action=nn_action,
+                        log_prob=nn_log_prob,
+                        reward=reward_result.reward,
+                    ))
 
                 if reward_result.reward > best_reward:
                     best_reward = reward_result.reward
@@ -202,6 +229,18 @@ class RLOrchestrator:
                 break
 
         total_reward = sum(r.reward for r in history)
+
+        # Update NN policy weights via REINFORCE (real gradient update)
+        if self.nn_policy is not None and nn_trajectory:
+            loss = self.nn_policy.update(nn_trajectory)
+            if event_callback:
+                event_callback({
+                    "event": "nn_update",
+                    "episode_id": self.episode_id,
+                    "policy_loss": round(loss, 6),
+                    "episodes_trained": self.nn_policy.episodes_trained,
+                    "strategy_win_rates": self.nn_policy.strategy_win_rates(),
+                })
 
         # Persist episode for future few-shot retrieval
         self._persist_episode(

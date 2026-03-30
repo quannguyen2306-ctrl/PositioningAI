@@ -68,6 +68,8 @@ async def stream_analysis(
 
     def run():
         try:
+            # Emit session_id first so clients can capture it before any other events
+            emit({"event": "session_id", "session_id": session_id})
             pipeline = AnalysisPipeline(
                 business_url=url,
                 openai_api_key=openai_key,
@@ -82,8 +84,6 @@ async def stream_analysis(
             store.set_result(session_id, result)
             # Persist pipeline data for Content Lab reuse
             store.set_pipeline_data(session_id, pipeline.get_pipeline_data_for_content_lab())
-            # Emit session_id so frontend can store it for Content Lab calls
-            emit({"event": "session_id", "session_id": session_id})
         except Exception:
             logger.error("SSE pipeline error", exc_info=True)
             emit({"event": "error", "message": "Analysis failed. Please try again."})

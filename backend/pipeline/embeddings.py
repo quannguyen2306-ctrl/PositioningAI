@@ -168,6 +168,95 @@ class EmbeddingStore:
         if chunks:
             self.store(chunks, source=source, url=url, domain=domain)
 
+    # How many original chunks to keep in the snapshot (evenly sampled).
+    # Keeps the original footprint present without letting it swamp the draft.
+    _SNAPSHOT_CAP = 15
+
+    # How many times to repeat draft chunks in the store.
+    # Draft chunks × _DRAFT_REPEAT ≈ snapshot size → roughly equal weighting.
+    _DRAFT_REPEAT = 3
+
+    def save_user_snapshot(self) -> None:
+        """
+        Snapshot the current user chunks (embeddings included) so they can be
+        restored cheaply — no re-embedding needed — on every RL step.
+
+        Caps to _SNAPSHOT_CAP evenly-sampled chunks so the original content
+        doesn't swamp the draft signal when both sit in the centroid.
+        Call once after the main pipeline finishes, before the RL loop starts.
+        """
+        all_user = [dict(c) for c in self._all_chunks if c["source"] == "user"]
+        if len(all_user) <= self._SNAPSHOT_CAP:
+            self._user_snapshot = all_user
+        else:
+            # Even sampling: pick _SNAPSHOT_CAP indices spread across the full list
+            step = len(all_user) / self._SNAPSHOT_CAP
+            indices = [int(i * step) for i in range(self._SNAPSHOT_CAP)]
+            self._user_snapshot = [all_user[i] for i in indices]
+
+    def restore_snapshot_and_add_draft(self, draft_chunks: list[str]) -> None:
+        """
+        Option-C RL step helper — balanced centroid weighting:
+          1. Remove all current user chunks from store.
+          2. Re-insert the capped original snapshot without re-embedding.
+          3. Embed draft chunks and add them _DRAFT_REPEAT times so their
+             weight roughly matches the snapshot size.
+
+        Result: centroid ≈ 50% original identity + 50% new draft signal,
+        giving the agent a meaningful gradient to follow each step.
+        """
+        # --- 1. Remove current user chunks ---
+        try:
+            self.collection.delete(where={"source": "user"})
+        except Exception:
+            pass
+        self._all_chunks = [c for c in self._all_chunks if c["source"] != "user"]
+
+        # --- 2. Re-insert snapshot (no API call needed) ---
+        if self._user_snapshot:
+            snap_ids = [str(uuid.uuid4()) for _ in self._user_snapshot]
+            snap_embs = [s["embedding"] for s in self._user_snapshot]
+            snap_docs = [s["text"] for s in self._user_snapshot]
+            snap_metas = [
+                {
+                    "source": "user",
+                    "url": s["url"],
+                    "domain": s["domain"],
+                    "chunk_idx": i,
+                }
+                for i, s in enumerate(self._user_snapshot)
+            ]
+            self.collection.add(
+                ids=snap_ids,
+                embeddings=snap_embs,
+                documents=snap_docs,
+                metadatas=snap_metas,
+            )
+            for item in self._user_snapshot:
+                self._all_chunks.append(dict(item))
+
+        # --- 3. Embed draft chunks and repeat _DRAFT_REPEAT times ---
+        if draft_chunks:
+            draft_embs = self._embed_all(draft_chunks)
+            repeated_chunks = draft_chunks * self._DRAFT_REPEAT
+            repeated_embs = draft_embs * self._DRAFT_REPEAT
+            rep_ids = [str(uuid.uuid4()) for _ in repeated_chunks]
+            rep_metas = [
+                {"source": "user", "url": "rl-draft", "domain": "", "chunk_idx": i}
+                for i in range(len(repeated_chunks))
+            ]
+            self.collection.add(
+                ids=rep_ids,
+                embeddings=repeated_embs,
+                documents=repeated_chunks,
+                metadatas=rep_metas,
+            )
+            for chunk, emb in zip(repeated_chunks, repeated_embs):
+                self._all_chunks.append({
+                    "text": chunk, "embedding": emb,
+                    "source": "user", "url": "rl-draft", "domain": "",
+                })
+
     def get_all_for_pca(self) -> tuple[np.ndarray, list[dict]]:
         """
         Returns:

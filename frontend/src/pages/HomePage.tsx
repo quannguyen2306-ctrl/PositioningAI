@@ -30,10 +30,10 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const sk = localStorage.getItem('serper_key') ?? ''
-    const ok = localStorage.getItem('openai_key') ?? ''
-    if (sk) setSerperKey(sk)
+    const ok = localStorage.getItem('openai_key') || import.meta.env.VITE_OPENAI_KEY || ''
+    const sk = localStorage.getItem('serper_key') || import.meta.env.VITE_SERPER_KEY || ''
     if (ok) setOpenaiKey(ok)
+    if (sk) setSerperKey(sk)
   }, [])
 
   const canSubmit = url.trim() && openaiKey.trim() && serperKey.trim() && !loading

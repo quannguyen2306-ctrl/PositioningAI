@@ -1,8 +1,9 @@
 """
 ingestion.py
 ------------
-Fetches a URL, cleans the HTML, splits into chunks,
-and uses an LLM to extract structured business context.
+This modules: 
+1. Scrapes the user's business website, strips nav/footer/scripts  
+2. GPT-4o-mini extracts: name, industry, services, audience, UVP, search query  
 """
 
 import re

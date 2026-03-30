@@ -5,10 +5,15 @@ Wraps the existing evaluation pipeline as an RL environment.
 
 Each call to step() applies a content draft by:
   1. Chunking the draft text
-  2. Replacing user chunks in the embedding store
+  2. Restoring the original user chunks (snapshot), then adding the draft
+     chunks alongside them — Option C: centroid = original + draft content
   3. Re-projecting all embeddings onto the frozen PCA
   4. Running RAG evaluation for visibility score
   5. Returning the new user centroid position + visibility score
+
+This means each step independently answers:
+  "If I added this draft to my existing website, where would I sit?"
+rather than navigating away from the original business position.
 """
 
 from dataclasses import dataclass
@@ -45,6 +50,10 @@ class RLEnvironment:
         self.business_context = pipeline_data["business_context"]
         self.client = openai_client
 
+        # Save original user chunks once so every RL step starts from the
+        # same baseline (original website content + new draft) — Option C.
+        self.store.save_user_snapshot()
+
     def get_current_position(self) -> np.ndarray:
         """Return the current user content centroid in 2D PCA space."""
         embeddings, meta = self.store.get_all_for_pca()
@@ -73,12 +82,8 @@ class RLEnvironment:
         if not chunks:
             chunks = [draft_text[:2000]]
 
-        self.store.replace_user_chunks(
-            chunks,
-            source="user",
-            url="rl-agent",
-            domain="",
-        )
+        # Restore original content + add this draft alongside it (Option C).
+        self.store.restore_snapshot_and_add_draft(chunks)
 
         embeddings, meta = self.store.get_all_for_pca()
         coords = self._project(embeddings)

@@ -5,12 +5,18 @@ Pure reward computation for the RL content positioning system.
 No LLM dependency — pure numpy math.
 
 Reward formula:
-  r = cos_sim(delta, target_dir) * magnitude_bonus * vis_multiplier
+  r = projection * vis_multiplier
 
 Where:
-  cos_sim        = directional alignment [-1, 1]
-  magnitude_bonus = how far we moved relative to initial distance [0, 1]
-  vis_multiplier  = penalty if RAG visibility dropped significantly
+  projection  = dot(delta, target_dir_unit)
+              = dist_prev - dist_curr  (PCA units closer to target)
+              Positive = moved toward target, negative = moved away.
+              Range: roughly ±0.1 to ±2.0 in practice.
+  vis_multiplier = penalty if RAG visibility dropped significantly
+
+Previously normalized by initial_dist which shrunk rewards to ~0.001–0.05
+and starved the agent of gradient signal. Raw projection gives 10-50x
+stronger reward values with no loss of direction information.
 """
 
 from dataclasses import dataclass
@@ -47,12 +53,16 @@ def compute_reward(
     target_dir = pos_target - pos_prev
     target_dir_unit = target_dir / (np.linalg.norm(target_dir) + 1e-8)
 
-    # Cosine similarity between actual movement and target direction
-    delta_norm = np.linalg.norm(delta) + 1e-8
-    cos_sim = float(np.dot(delta, target_dir_unit) / delta_norm)
-    cos_sim = float(np.clip(cos_sim, -1.0, 1.0))
+    # Signed projection of movement onto target direction.
+    # Equivalent to (dist_prev - dist_curr): positive = closer, negative = further.
+    # Kept un-normalized so the agent gets a strong, meaningful gradient signal.
+    projection = float(np.dot(delta, target_dir_unit))
 
-    # Magnitude bonus: reward scales with how far we moved toward target
+    # cos_sim for logging / moved_toward_target flag (still useful metadata)
+    delta_norm = np.linalg.norm(delta) + 1e-8
+    cos_sim = float(np.clip(projection / delta_norm, -1.0, 1.0))
+
+    # magnitude_bonus kept for logging (not used in reward anymore)
     magnitude_bonus = float(np.clip(
         np.linalg.norm(delta) / (initial_dist + 1e-8),
         0.0, 1.0,
@@ -69,7 +79,7 @@ def compute_reward(
     else:
         vis_multiplier = 0.4                               # severe — content broke RAG
 
-    reward = cos_sim * magnitude_bonus * vis_multiplier
+    reward = projection * vis_multiplier
 
     return RLRewardResult(
         reward=round(reward, 4),
@@ -77,7 +87,7 @@ def compute_reward(
         magnitude_bonus=round(magnitude_bonus, 4),
         vis_multiplier=round(vis_multiplier, 3),
         vis_delta=round(vis_delta, 2),
-        moved_toward_target=cos_sim > 0,
+        moved_toward_target=projection > 0,
     )
 
 
