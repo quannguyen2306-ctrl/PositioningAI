@@ -14,6 +14,7 @@
 6. **Queries AI engines directly** — optional live comparison across ChatGPT, Claude, Gemini, Perplexity
 7. **Maps** your semantic position vs competitors in 2D (PCA with LLM-labelled axes)
 8. **Generates** an improvement plan: priority fixes + ready-to-paste content + topic recommendations
+9. **Runs an RL Agent** — iteratively drafts and refines content to move your semantic position toward a target zone on the map
 
 ---
 
@@ -83,6 +84,29 @@ recommender.py     ← GPT-4o synthesises everything → structured action plan
 
 Results stream to the frontend in real-time via **Server-Sent Events** (`GET /analyse/stream`).
 
+#### RL Agent loop (`backend/pipeline/rl_orchestrator.py`)
+
+```
+Target zone (clicked on map)
+   │
+   ▼
+rl_env.py          ← wraps embedding store + frozen PCA as an RL environment
+   │
+   ▼
+rl_agent.py        ← GPT-4o drafts content; temperature anneals 0.85 → 0.35
+   │
+   ▼
+rl_reward.py       ← reward = proximity improvement + visibility improvement
+   │
+   ▼
+nn_policy.py       ← neural network policy; learns from cross-business episodes
+   │
+   ▼
+rl_orchestrator.py ← episode loop; stops on convergence, plateau, or max steps
+```
+
+Episodes are stored in `cache/episode_store.py` and learned by the neural policy in `cache/nn_model_store.py`, enabling few-shot cross-business improvement over time.
+
 ### Project structure
 
 ```
@@ -102,8 +126,17 @@ backend/
 │   ├── pca_visualizer.py     # PCA + axis labelling + Plotly
 │   ├── blue_ocean.py         # Archetype + opportunity zones
 │   ├── recommender.py        # GPT-4o strategy generation
-│   └── multi_engine.py       # ChatGPT / Claude / Gemini / Perplexity queries
-└── cache/session_store.py    # Thread-safe in-memory session dict
+│   ├── multi_engine.py       # ChatGPT / Claude / Gemini / Perplexity queries
+│   ├── rl_orchestrator.py    # RL episode loop (convergence / plateau / max steps)
+│   ├── rl_agent.py           # GPT-4o content generation agent with annealing
+│   ├── rl_env.py             # Environment: frozen PCA + embedding store
+│   ├── rl_reward.py          # Reward: proximity + visibility improvement
+│   └── nn_policy.py          # Neural network policy; learns from episodes
+└── cache/
+    ├── session_store.py      # Thread-safe in-memory session dict
+    ├── episode_store.py      # Cross-business RL episode memory
+    ├── nn_model_store.py     # Persists trained neural policy weights
+    └── competitor_cache.py   # Caches competitor URLs for stable PCA re-runs
 
 frontend/src/
 ├── api/
@@ -127,6 +160,9 @@ Re-score draft content against the same competitor embeddings — no re-scraping
 
 ### Recommendation Lab
 Generate a targeted content strategy toward any position on the semantic map. Click a target zone and get specific content recommendations to move there.
+
+### RL Agent
+An iterative reinforcement-learning loop that drafts, evaluates, and refines content to move your semantic position toward a target. The agent runs up to N steps, annealing its temperature from exploratory to precise as it converges. A lightweight neural network policy learns from cross-business episodes to improve draft quality over time.
 
 ### Multi-engine comparison
 Optionally query ChatGPT, Claude, Gemini, and Perplexity with the same customer questions and compare how each engine represents your business.
