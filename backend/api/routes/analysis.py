@@ -14,13 +14,16 @@ import json
 import logging
 import numpy as np
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
 from schemas.request import AnalysisRequest, ContentLabRequest, RecommendationRequest
 from schemas.response import AnalysisResponse, StatusEnum
 from cache.session_store import store
 from pipeline.orchestrator import AnalysisPipeline
+from pipeline.ingestion import validate_url
+
+from limiter import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -42,19 +45,26 @@ class _NumpyEncoder(json.JSONEncoder):
 
 
 @router.get("/analyse/stream")
+@limiter.limit("10/minute")
 async def stream_analysis(
-    url: str = Query(...),
-    openai_key: str = Query(...),
-    serper_key: str = Query(...),
-    n_competitors: int = Query(5),
-    n_questions: int = Query(10),
-    custom_questions: str = Query(""),
+    request: Request,
+    url: str = Query(..., min_length=1, max_length=2048),
+    openai_key: str = Query(..., min_length=1),
+    serper_key: str = Query(..., min_length=1),
+    n_competitors: int = Query(5, ge=1, le=50),
+    n_questions: int = Query(10, ge=1, le=30),
+    custom_questions: str = Query("", max_length=5000),
 ):
     """
     SSE endpoint: runs the full analysis pipeline and streams events.
     Events: progress, profile, competitors, questions, eval, pca,
             archetype, blue_ocean, recommendations, complete, error, heartbeat.
     """
+    try:
+        validate_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     queue: asyncio.Queue = asyncio.Queue()
     loop = asyncio.get_running_loop()
 
@@ -117,7 +127,8 @@ async def stream_analysis(
 
 
 @router.post("/api/analysis/start", response_model=AnalysisResponse)
-async def start_analysis(request: AnalysisRequest):
+@limiter.limit("10/minute")
+async def start_analysis(request: Request, body: AnalysisRequest):
     """
     Initiate a new analysis.
     Returns: session_id and queued status.
@@ -128,20 +139,20 @@ async def start_analysis(request: AnalysisRequest):
     def run():
         try:
             pipeline = AnalysisPipeline(
-                business_url=str(request.url),
-                openai_api_key=request.openai_key,
-                serper_api_key=request.serper_key,
-                n_competitors=request.n_competitors,
-                n_questions=request.n_questions,
-                custom_questions=request.custom_questions,
+                business_url=str(body.url),
+                openai_api_key=body.openai_key,
+                serper_api_key=body.serper_key,
+                n_competitors=body.n_competitors,
+                n_questions=body.n_questions,
+                custom_questions=body.custom_questions,
                 progress_callback=lambda pct, step: store.update_progress(session_id, pct, step),
             )
             result = pipeline.run()
             store.set_result(session_id, result)
             store.set_pipeline_data(session_id, pipeline.get_pipeline_data_for_content_lab())
-        except Exception as e:
+        except Exception:
             logger.error("Pipeline error for session %s", session_id, exc_info=True)
-            store.set_error(session_id, str(e))
+            store.set_error(session_id, "Analysis failed. Please try again.")
 
     loop.run_in_executor(None, run)
 

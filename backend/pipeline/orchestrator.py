@@ -18,7 +18,7 @@ Pipeline stages:
 from openai import OpenAI
 from sklearn.preprocessing import StandardScaler
 
-from .ingestion import fetch_url, chunk_text, extract_business_context
+from .ingestion import fetch_url, chunk_text, extract_business_context, validate_url
 from .retrieval import search_competitors, fetch_competitor_docs
 from cache.competitor_cache import get_cached_competitors, save_competitors
 from .embeddings import EmbeddingStore
@@ -44,6 +44,7 @@ class AnalysisPipeline:
         progress_callback=None,
         event_callback=None,
     ):
+        validate_url(business_url)  # SSRF guard — raises ValueError on private/invalid URLs
         self.business_url = business_url
         self.openai_client = OpenAI(api_key=openai_api_key)
         self.serper_api_key = serper_api_key

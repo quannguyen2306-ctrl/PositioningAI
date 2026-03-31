@@ -8,9 +8,73 @@ This modules:
 
 import re
 import json
+import ipaddress
+import logging
+import socket
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
+from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# SSRF protection
+# ---------------------------------------------------------------------------
+
+_PRIVATE_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),   # link-local / AWS metadata
+    ipaddress.ip_network("100.64.0.0/10"),     # carrier-grade NAT
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),          # IPv6 ULA
+]
+
+_ALLOWED_SCHEMES = {"http", "https"}
+
+# Hostnames that must never be resolved (cloud metadata endpoints)
+_BLOCKED_HOSTNAMES = {
+    "metadata.google.internal",
+    "metadata.internal",
+    "169.254.169.254",
+}
+
+
+def validate_url(url: str) -> None:
+    """
+    Validate a URL to prevent Server-Side Request Forgery (SSRF).
+
+    Raises ValueError for:
+    - Non-HTTP(S) schemes
+    - Private / reserved IP ranges
+    - Known cloud metadata hostnames
+    - Missing or empty hostname
+    """
+    parsed = urlparse(url)
+
+    if parsed.scheme not in _ALLOWED_SCHEMES:
+        raise ValueError(f"Disallowed URL scheme: {parsed.scheme!r}")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL is missing a hostname")
+
+    if hostname.lower() in _BLOCKED_HOSTNAMES:
+        raise ValueError(f"Blocked hostname: {hostname}")
+
+    # Attempt to resolve the hostname; if it resolves to a private range, block it
+    try:
+        addr_str = socket.getaddrinfo(hostname, None)[0][4][0]
+        ip = ipaddress.ip_address(addr_str)
+        for net in _PRIVATE_NETWORKS:
+            if ip in net:
+                raise ValueError(f"URL resolves to a private/reserved IP address: {ip}")
+    except socket.gaierror:
+        # Hostname doesn't resolve — allow the request to fail naturally
+        pass
 
 
 # ---------------------------------------------------------------------------

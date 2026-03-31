@@ -5,8 +5,12 @@ Uses the Serper API to find competitor URLs from a search query,
 then fetches and returns their text content.
 """
 
+import logging
 import requests
-from .ingestion import fetch_url
+from urllib.parse import urlparse
+from .ingestion import fetch_url, validate_url
+
+logger = logging.getLogger(__name__)
 
 SERPER_ENDPOINT = "https://google.serper.dev/search"
 
@@ -67,15 +71,19 @@ def fetch_competitor_docs(
 
     for url in urls:
         try:
+            validate_url(url)
             text = fetch_url(url)
             if len(text) > 150:   # ignore near-empty pages
                 docs.append({
                     "url": url,
                     "text": text[:max_per_doc],
-                    "domain": url.replace("https://", "").replace("http://", "").split("/")[0],
+                    "domain": urlparse(url).netloc,
                 })
-        except Exception:
-            # Gracefully skip — many sites block scrapers
+        except ValueError as exc:
+            logger.info("Skipped competitor %s (blocked): %s", url, exc)
+            continue
+        except Exception as exc:
+            logger.info("Skipped competitor %s: %s", url, exc)
             continue
 
     return docs

@@ -21,7 +21,6 @@ from fastapi.responses import StreamingResponse
 
 from schemas.rl_schemas import RLStartRequest, RLStatusResponse, RLStepDetail
 from cache.session_store import store
-from cache.episode_store import episode_store
 from cache.nn_model_store import load_nn_policy, save_nn_policy
 from pipeline.rl_orchestrator import RLOrchestrator, RLConfig
 
@@ -103,8 +102,8 @@ async def rl_start(req: RLStartRequest):
             if nn_policy is not None:
                 save_nn_policy(nn_policy)
 
-        except Exception as exc:
-            logger.error("RL episode error: %s", exc, exc_info=True)
+        except Exception:
+            logger.error("RL episode error for episode %s", episode_id, exc_info=True)
             rl_state = store.get_rl_state(req.session_id)
             if rl_state:
                 q = rl_state.get("queue")
@@ -112,7 +111,7 @@ async def rl_start(req: RLStartRequest):
                     loop.call_soon_threadsafe(q.put_nowait, {
                         "event": "rl_error",
                         "episode_id": episode_id,
-                        "message": str(exc),
+                        "message": "An error occurred during the RL episode. Please try again.",
                     })
             store.update_rl_status(req.session_id, "failed")
         finally:
@@ -189,12 +188,6 @@ async def rl_cancel(episode_id: str, session_id: str):
         raise HTTPException(status_code=404, detail="Episode not found.")
     store.update_rl_status(session_id, "cancelled")
     return {"cancelled": True}
-
-
-@router.get("/api/rl/episode-store/stats")
-async def episode_store_stats():
-    """Debug endpoint — summary of stored past episodes for few-shot retrieval."""
-    return episode_store.stats()
 
 
 # ---------------------------------------------------------------------------
