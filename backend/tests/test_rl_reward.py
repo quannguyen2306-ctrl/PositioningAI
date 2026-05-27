@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
-from pipeline.rl_reward import compute_reward, compute_proximity, is_converged
+from pipeline.rl_reward import compute_reward, compute_proximity, is_converged, is_plateau
 from cache.episode_store import EpisodeStore, EpisodeRecord, compute_target_direction
 import time
 
@@ -67,6 +67,33 @@ def test_convergence():
     assert is_converged(close, target, threshold=0.3) is True
     assert is_converged(far, target, threshold=0.3) is False
     print(f"  PASS  convergence check")
+
+
+def test_plateau_detector():
+    """is_plateau honors eps and never cuts short a short/climbing episode."""
+    eps = 0.05
+
+    # Empty / too-short history: never a plateau (need > window steps).
+    assert is_plateau([], eps) is False
+    assert is_plateau([0.5, 0.6, 0.7], eps) is False   # len == window
+
+    # A record on the most recent step is NOT a plateau, even after dips.
+    assert is_plateau([0.5, 0.4, 0.3, 0.9], eps) is False
+
+    # A steadily climbing episode is NOT a plateau (the old all-below-max
+    # check wrongly fired here).
+    assert is_plateau([0.1, 0.3, 0.5, 0.6, 0.61], eps) is False
+
+    # A trailing window that fails to beat the prior best by eps IS a plateau.
+    assert is_plateau([0.5, 0.6, 0.61, 0.59, 0.60, 0.58], eps) is True
+
+    # Threshold sensitivity: prior best 0.50, trailing best 0.50 + delta.
+    just_below = [0.50, 0.40, 0.40, 0.54]   # delta 0.04 < eps → plateau
+    just_above = [0.50, 0.40, 0.40, 0.56]   # delta 0.06 > eps → progress
+    assert is_plateau(just_below, eps) is True
+    assert is_plateau(just_above, eps) is False
+
+    print("  PASS  plateau detector honors eps + spares climbing episodes")
 
 
 def test_direction_labels():
@@ -151,6 +178,7 @@ if __name__ == "__main__":
         test_reward_wrong_direction,
         test_reward_vis_penalty,
         test_convergence,
+        test_plateau_detector,
         test_direction_labels,
         test_episode_store_retrieval,
     ]

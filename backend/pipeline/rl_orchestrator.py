@@ -5,7 +5,8 @@ Episode loop: generate → evaluate → reward → refine → repeat.
 
 Stopping conditions (whichever triggers first):
   1. Proximity  — user centroid within proximity_threshold of target
-  2. Plateau    — best reward in last 3 steps differs by < plateau_eps
+  2. Plateau    — best reward over the trailing window fails to beat the prior
+                  best by at least plateau_eps (see rl_reward.is_plateau)
   3. Max steps  — hard cost ceiling
 """
 
@@ -15,7 +16,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from openai import OpenAI
 
-from pipeline.rl_reward import compute_reward, is_converged
+from pipeline.rl_reward import compute_reward, is_converged, is_plateau
 from pipeline.rl_env import RLEnvironment
 from pipeline.rl_agent import RLAgent, RLStepRecord
 from pipeline.nn_policy import NNPolicy, TrajectoryStep, build_state
@@ -212,15 +213,11 @@ class RLOrchestrator:
                         "moved_toward_target": reward_result.moved_toward_target,
                     })
 
-                # Plateau check — only after (max_steps - 2) steps, and only
-                # if the last 3 consecutive steps ALL failed to beat the
-                # all-time best reward. A single improving step resets this.
-                min_steps_before_plateau = max(5, self.config.max_steps - 2)
-                if len(reward_history) >= min_steps_before_plateau:
-                    all_time_best = max(reward_history)
-                    if all(r < all_time_best for r in reward_history[-3:]):
-                        stop_reason = "plateau"
-                        break
+                # Plateau check — stop only when the trailing window has failed
+                # to beat the prior best by at least the configured plateau_eps.
+                if is_plateau(reward_history, self.config.plateau_eps):
+                    stop_reason = "plateau"
+                    break
 
             except Exception as exc:
                 if event_callback:

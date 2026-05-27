@@ -4,10 +4,9 @@ api/routes/rl.py
 HTTP interface for the RL content positioning episode lifecycle.
 
 Endpoints:
-  POST /api/rl/start              — start an episode, returns episode_id
-  GET  /api/rl/{episode_id}/stream — SSE stream of step events
-  GET  /api/rl/{episode_id}/status — polling fallback
-  POST /api/rl/{episode_id}/cancel — signal the episode to stop
+  POST /api/rl/start               — start an episode, returns episode_id
+  GET  /api/rl/{episode_id}/stream — SSE stream of step events (single
+                                     representation of RL episode state)
 """
 
 import asyncio
@@ -20,9 +19,8 @@ import numpy as np
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from schemas.rl_schemas import RLStartRequest, RLStatusResponse, RLStepDetail
+from schemas.rl_schemas import RLStartRequest
 from cache.session_store import store
-from cache.episode_store import episode_store
 from pipeline.nn_policy import NNPolicy
 from pipeline.rl_orchestrator import RLOrchestrator, RLConfig
 
@@ -79,19 +77,12 @@ async def rl_start(req: RLStartRequest):
     episode_id = str(uuid.uuid4())
     target_pos = np.array([req.target_x, req.target_y])
 
-    # Initialise RL state in the session
+    # Initialise RL state in the session. The SSE stream is the single source
+    # of episode progress, so we keep only the plumbing it needs: the event
+    # queue and the episode_id used to match the stream request.
     store.set_rl_state(req.session_id, {
         "episode_id": episode_id,
         "status": "running",
-        "step": 0,
-        "max_steps": req.max_steps,
-        "current_pos": pipeline_data.get("initial_pos", [0.0, 0.0]),
-        "target_pos": [req.target_x, req.target_y],
-        "best_draft": "",
-        "best_reward": 0.0,
-        "steps_detail": [],
-        "stop_reason": None,
-        "few_shot_count": 0,
         "queue": asyncio.Queue(),   # internal — not serialised to client
     })
 
@@ -123,8 +114,6 @@ async def rl_start(req: RLStartRequest):
                     q = rl_state.get("queue")
                     if q:
                         loop.call_soon_threadsafe(q.put_nowait, event)
-                    # Update persisted state for polling endpoint
-                    _update_rl_state_from_event(req.session_id, event)
 
             orchestrator.run_episode(target_pos=target_pos, event_callback=emit)
 
@@ -185,83 +174,3 @@ async def rl_stream(episode_id: str, session_id: str):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
-
-
-@router.get("/api/rl/{episode_id}/status", response_model=RLStatusResponse)
-async def rl_status(episode_id: str, session_id: str):
-    """Polling fallback — returns the current episode state snapshot."""
-    rl_state = store.get_rl_state(session_id)
-    if not rl_state or rl_state.get("episode_id") != episode_id:
-        raise HTTPException(status_code=404, detail="Episode not found.")
-
-    return RLStatusResponse(
-        episode_id=episode_id,
-        session_id=session_id,
-        status=rl_state.get("status", "running"),
-        step=rl_state.get("step", 0),
-        max_steps=rl_state.get("max_steps", 8),
-        current_pos=rl_state.get("current_pos", [0.0, 0.0]),
-        target_pos=rl_state.get("target_pos", [0.0, 0.0]),
-        best_draft=rl_state.get("best_draft", ""),
-        best_reward=rl_state.get("best_reward", 0.0),
-        steps_detail=[RLStepDetail(**s) for s in rl_state.get("steps_detail", [])],
-        stop_reason=rl_state.get("stop_reason"),
-        few_shot_count=rl_state.get("few_shot_count", 0),
-    )
-
-
-@router.post("/api/rl/{episode_id}/cancel")
-async def rl_cancel(episode_id: str, session_id: str):
-    """Signal the episode to stop after the current step completes."""
-    rl_state = store.get_rl_state(session_id)
-    if not rl_state or rl_state.get("episode_id") != episode_id:
-        raise HTTPException(status_code=404, detail="Episode not found.")
-    store.update_rl_status(session_id, "cancelled")
-    return {"cancelled": True}
-
-
-@router.get("/api/rl/episode-store/stats")
-async def episode_store_stats():
-    """Debug endpoint — summary of stored past episodes for few-shot retrieval."""
-    return episode_store.stats()
-
-
-# ---------------------------------------------------------------------------
-# Helper: update persisted RL state from emitted events
-# ---------------------------------------------------------------------------
-
-def _update_rl_state_from_event(session_id: str, event: dict) -> None:
-    """Sync the session's rl_state dict from emitted episode events."""
-    event_type = event.get("event")
-    rl_state = store.get_rl_state(session_id)
-    if not rl_state:
-        return
-
-    if event_type == "rl_start":
-        rl_state["few_shot_count"] = event.get("few_shot_count", 0)
-        rl_state["current_pos"] = event.get("initial_pos", [0.0, 0.0])
-
-    elif event_type == "rl_step":
-        rl_state["step"] = event.get("step", 0)
-        rl_state["current_pos"] = event.get("pos", rl_state["current_pos"])
-        if event.get("reward", -999) > rl_state.get("best_reward", -999):
-            rl_state["best_reward"] = event["reward"]
-        rl_state["steps_detail"].append({
-            "step": event.get("step"),
-            "reward": event.get("reward"),
-            "pos_before": event.get("pos", [0.0, 0.0]),
-            "pos_after": event.get("pos", [0.0, 0.0]),
-            "vis_before": event.get("vis_score", 0.0),
-            "vis_after": event.get("vis_score", 0.0),
-            "critique": event.get("critique", ""),
-            "draft_preview": event.get("draft_preview", ""),
-            "moved_toward_target": event.get("moved_toward_target", False),
-        })
-
-    elif event_type == "rl_complete":
-        rl_state["status"] = "completed"
-        rl_state["best_draft"] = event.get("best_draft", "")
-        rl_state["best_reward"] = event.get("best_reward", 0.0)
-        rl_state["stop_reason"] = event.get("stop_reason")
-
-    store.set_rl_state(session_id, rl_state)

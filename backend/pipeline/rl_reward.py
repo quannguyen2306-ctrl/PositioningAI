@@ -95,3 +95,25 @@ def is_converged(
 ) -> bool:
     """True when the business is within threshold PCA units of the target."""
     return compute_proximity(pos_curr, pos_target) <= threshold
+
+
+def is_plateau(reward_history: list[float], eps: float, window: int = 3) -> bool:
+    """
+    True when the episode has stopped making progress: the best reward over the
+    trailing `window` steps fails to exceed the best reward before that window
+    by at least `eps`.
+
+    This honors the configured `eps` threshold (unlike a bare "all of the last N
+    steps are below the all-time max" test, which fires even on an episode that
+    is still climbing — a record on the most recent step resets the comparison,
+    and a small-but-real improvement is not treated as a plateau).
+
+    Returns False until there is at least one step preceding the trailing window
+    (i.e. len(reward_history) > window), so a short or still-improving history is
+    never cut short.
+    """
+    if window < 1 or len(reward_history) <= window:
+        return False
+    prior = reward_history[:-window]
+    trailing = reward_history[-window:]
+    return (max(trailing) - max(prior)) < eps
