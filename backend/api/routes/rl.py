@@ -67,8 +67,8 @@ async def rl_start(req: RLStartRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    pipeline_data = store.get_pipeline_data(req.session_id)
-    if not pipeline_data:
+    handoff = store.get_pipeline_data(req.session_id)
+    if not handoff:
         raise HTTPException(
             status_code=400,
             detail="Pipeline data not available. Run a full analysis first.",
@@ -101,7 +101,7 @@ async def rl_start(req: RLStartRequest):
             nn_policy = _load_nn_policy() if req.use_nn_agent else None
 
             orchestrator = RLOrchestrator(
-                pipeline_data=pipeline_data,
+                handoff=handoff,
                 openai_client=client,
                 episode_id=episode_id,
                 config=config,

@@ -18,6 +18,7 @@ from openai import OpenAI
 
 from pipeline.rl_reward import compute_reward, is_converged, is_plateau
 from pipeline.rl_env import RLEnvironment
+from pipeline.handoff import PipelineHandoff
 from pipeline.rl_agent import RLAgent, RLStepRecord
 from pipeline.nn_policy import NNPolicy, TrajectoryStep, build_state
 from cache.episode_store import (
@@ -49,13 +50,13 @@ class RLEpisodeResult:
 class RLOrchestrator:
     def __init__(
         self,
-        pipeline_data: dict,
+        handoff: PipelineHandoff,
         openai_client: OpenAI,
         episode_id: str,
         config: RLConfig = None,
         nn_policy: NNPolicy | None = None,
     ):
-        self.pipeline_data = pipeline_data
+        self.handoff = handoff
         self.client = openai_client
         self.episode_id = episode_id
         self.config = config or RLConfig()
@@ -66,17 +67,19 @@ class RLOrchestrator:
         target_pos: np.ndarray,
         event_callback=None,
     ) -> RLEpisodeResult:
-        env = RLEnvironment(self.pipeline_data, self.client)
-        business_context = self.pipeline_data["business_context"]
-        interpretations = self.pipeline_data.get("interpretations", [])
+        env = RLEnvironment(self.handoff, self.client)
+        business_context = self.handoff.business_context
+        interpretations = self.handoff.interpretations
 
         # Baseline state before any RL steps
         initial_pos = env.get_current_position()
         initial_vis = env.get_current_vis()
         initial_dist = float(np.linalg.norm(target_pos - initial_pos))
 
-        # Find few-shot examples from similar past episodes
-        archetype_name = (self.pipeline_data.get("archetype") or {}).get("name", "")
+        # Find few-shot examples from similar past episodes. The handoff does not
+        # carry an archetype, so few-shot retrieval matches on industry+direction
+        # only (unchanged from the prior dict, which never held an archetype key).
+        archetype_name = ""
         direction = compute_target_direction(
             float(target_pos[0] - initial_pos[0]),
             float(target_pos[1] - initial_pos[1]),

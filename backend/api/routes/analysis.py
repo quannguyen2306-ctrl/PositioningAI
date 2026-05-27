@@ -125,8 +125,8 @@ async def content_lab_evaluate(request: ContentLabRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    pipeline_data = store.get_pipeline_data(request.session_id)
-    if not pipeline_data:
+    handoff = store.get_pipeline_data(request.session_id)
+    if not handoff:
         raise HTTPException(
             status_code=400,
             detail="Pipeline data not available. Re-run the analysis first.",
@@ -136,71 +136,9 @@ async def content_lab_evaluate(request: ContentLabRequest):
 
     def run():
         from openai import OpenAI
-        from pipeline.ingestion import chunk_text
-        from pipeline.blue_ocean import classify_archetype, find_blue_ocean_zones
-        from pipeline.rag_evaluator import run_evaluation
 
         client = OpenAI(api_key=request.openai_key)
-        embedding_store = pipeline_data["store"]
-        fitted_pca = pipeline_data["pca"]
-        fitted_scaler = pipeline_data["scaler"]
-        questions = pipeline_data["questions"]
-        business_context = pipeline_data["business_context"]
-
-        # Chunk new content and replace user chunks in store
-        chunks = chunk_text(request.new_content)
-        if not chunks:
-            chunks = [request.new_content[:2000]]  # fallback: treat as single chunk
-
-        embedding_store.replace_user_chunks(
-            chunks,
-            source="user",
-            url="content-lab",
-            domain="",
-        )
-
-        # Re-run evaluation with parallel execution
-        eval_results = run_evaluation(
-            questions,
-            embedding_store,
-            client,
-            business_context.get("business_name", "Your Business"),
-        )
-
-        # Re-project all embeddings using the existing fitted PCA (no refit)
-        all_embeddings, all_meta = embedding_store.get_all_for_pca()
-        scaled = fitted_scaler.transform(all_embeddings)
-        new_coords = fitted_pca.transform(scaled)
-
-        # Re-classify archetype and blue ocean zones
-        archetype = classify_archetype(
-            new_coords,
-            all_meta,
-            eval_results["results"],
-        )
-        blue_ocean_zones = find_blue_ocean_zones(new_coords, all_meta)
-
-        # Build PCA points in same format as main pipeline
-        pca_points = [
-            {
-                "components": new_coords[i].tolist(),
-                "source": all_meta[i]["source"],
-                "domain": all_meta[i]["domain"],
-                "text": all_meta[i]["text"],
-            }
-            for i in range(len(new_coords))
-        ]
-
-        return {
-            "eval": {
-                **eval_results,
-                "mention_rate": round(eval_results["mention_rate"] / 100, 4),
-            },
-            "pca_points": pca_points,
-            "archetype": archetype,
-            "blue_ocean_zones": blue_ocean_zones,
-            "blue_ocean_opportunities": eval_results.get("blue_ocean_opportunities", []),
-        }
+        return handoff.re_evaluate(request.new_content, client)
 
     result = await loop.run_in_executor(None, run)
     return result
@@ -219,8 +157,8 @@ async def recommendation_generate(request: RecommendationRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    pipeline_data = store.get_pipeline_data(request.session_id)
-    if not pipeline_data:
+    handoff = store.get_pipeline_data(request.session_id)
+    if not handoff:
         raise HTTPException(status_code=400, detail="Session pipeline data not available. Run a full analysis first.")
 
     loop = asyncio.get_running_loop()
@@ -230,8 +168,8 @@ async def recommendation_generate(request: RecommendationRequest):
         from openai import OpenAI
 
         client = OpenAI(api_key=request.openai_key)
-        business_context = pipeline_data.get("business_context", {})
-        interpretations = pipeline_data.get("interpretations", [])
+        business_context = handoff.business_context
+        interpretations = handoff.interpretations
 
         biz_name = business_context.get("business_name", "Your Business")
         industry = business_context.get("industry", "")

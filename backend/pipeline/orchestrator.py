@@ -25,6 +25,7 @@ from .rag_evaluator import generate_test_questions, run_evaluation
 from .pca_visualizer import fit_pca, interpret_dimensions, plot_2d, plot_3d
 from .recommender import generate_recommendations
 from .blue_ocean import classify_archetype, find_blue_ocean_zones
+from .handoff import PipelineHandoff
 
 
 class AnalysisPipeline:
@@ -252,17 +253,17 @@ class AnalysisPipeline:
             "blue_ocean_opportunities": self.eval_results.get("blue_ocean_opportunities", []),
         }
 
-    def get_pipeline_data_for_content_lab(self) -> dict:
+    def get_pipeline_data_for_content_lab(self) -> PipelineHandoff:
         """
-        Return the data needed by the Content Lab endpoint to re-evaluate
-        new content without re-running the full pipeline.
+        Return the typed handoff reused by the Content Lab, recommendation, and
+        RL paths to operate on this run without re-running the full pipeline.
         """
-        return {
-            "store": self.store,
-            "pca": self.pca,
-            "scaler": self.scaler,
-            "metadata": self.pca_metadata,
-            "questions": self.test_questions,
-            "business_context": self.business_context,
-            "interpretations": self.interpretations,
-        }
+        return PipelineHandoff(
+            store=self.store,
+            pca=self.pca,
+            scaler=self.scaler,
+            metadata=self.pca_metadata,
+            questions=self.test_questions,
+            business_context=self.business_context,
+            interpretations=self.interpretations,
+        )

@@ -23,6 +23,7 @@ from openai import OpenAI
 
 from pipeline.ingestion import chunk_text
 from pipeline.rag_evaluator import run_evaluation
+from pipeline.handoff import PipelineHandoff
 
 
 @dataclass
@@ -42,12 +43,12 @@ class RLEnvironment:
     making before/after positions directly comparable.
     """
 
-    def __init__(self, pipeline_data: dict, openai_client: OpenAI):
-        self.store = pipeline_data["store"]
-        self.pca = pipeline_data["pca"]
-        self.scaler = pipeline_data["scaler"]
-        self.questions = pipeline_data["questions"]
-        self.business_context = pipeline_data["business_context"]
+    def __init__(self, handoff: PipelineHandoff, openai_client: OpenAI):
+        self.store = handoff.store
+        self.pca = handoff.pca
+        self.scaler = handoff.scaler
+        self.questions = handoff.questions
+        self.business_context = handoff.business_context
         self.client = openai_client
 
         # Save original user chunks once so every RL step starts from the
