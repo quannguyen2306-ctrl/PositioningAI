@@ -93,7 +93,6 @@ def classify_archetype(
     coords: np.ndarray,
     pca_meta: list[dict],
     eval_results: list[dict],
-    user_domain: str = "",
 ) -> dict:
     """
     Classify the user's competitive positioning into one of 5 archetypes.

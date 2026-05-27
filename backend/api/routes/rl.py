@@ -14,6 +14,7 @@ import asyncio
 import json
 import uuid
 import logging
+from pathlib import Path
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
@@ -22,8 +23,36 @@ from fastapi.responses import StreamingResponse
 from schemas.rl_schemas import RLStartRequest, RLStatusResponse, RLStepDetail
 from cache.session_store import store
 from cache.episode_store import episode_store
-from cache.nn_model_store import load_nn_policy, save_nn_policy
+from pipeline.nn_policy import NNPolicy
 from pipeline.rl_orchestrator import RLOrchestrator, RLConfig
+
+_NN_POLICY_PATH = Path(__file__).parent.parent.parent / "cache" / "nn_policy.npz"
+
+
+def _load_nn_policy(path: Path = _NN_POLICY_PATH) -> NNPolicy:
+    """Load existing weights or create a fresh policy if none saved yet."""
+    if path.exists():
+        try:
+            policy = NNPolicy.load(path)
+            print(
+                f"[nn_policy] Loaded weights from {path} "
+                f"(episodes trained: {policy.episodes_trained})"
+            )
+            return policy
+        except Exception as e:
+            print(f"[nn_policy] Failed to load weights ({e}) — starting fresh.")
+    else:
+        print("[nn_policy] No saved weights found — starting fresh.")
+    return NNPolicy()
+
+
+def _save_nn_policy(policy: NNPolicy, path: Path = _NN_POLICY_PATH) -> None:
+    """Persist policy weights to disk."""
+    policy.save(path)
+    print(
+        f"[nn_policy] Saved weights to {path} "
+        f"(episodes trained: {policy.episodes_trained})"
+    )
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -78,7 +107,7 @@ async def rl_start(req: RLStartRequest):
             )
 
             # Load NN policy if requested
-            nn_policy = load_nn_policy() if req.use_nn_agent else None
+            nn_policy = _load_nn_policy() if req.use_nn_agent else None
 
             orchestrator = RLOrchestrator(
                 pipeline_data=pipeline_data,
@@ -101,7 +130,7 @@ async def rl_start(req: RLStartRequest):
 
             # Save updated NN weights after episode
             if nn_policy is not None:
-                save_nn_policy(nn_policy)
+                _save_nn_policy(nn_policy)
 
         except Exception as exc:
             logger.error("RL episode error: %s", exc, exc_info=True)

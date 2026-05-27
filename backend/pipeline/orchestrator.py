@@ -16,7 +16,6 @@ Pipeline stages:
 """
 
 from openai import OpenAI
-from sklearn.preprocessing import StandardScaler
 
 from .ingestion import fetch_url, chunk_text, extract_business_context
 from .retrieval import search_competitors, fetch_competitor_docs
@@ -163,7 +162,6 @@ class AnalysisPipeline:
             self.store,
             self.openai_client,
             self.business_context.get("business_name", "Your Business"),
-            progress_callback=None,
         )
         # Normalise mention_rate to 0.0–1.0 fraction (frontend multiplies by 100)
         eval_for_sse = {
@@ -204,7 +202,6 @@ class AnalysisPipeline:
             self.coords,
             self.pca_metadata,
             self.eval_results["results"],
-            user_domain="",
         )
         self.blue_ocean_zones = find_blue_ocean_zones(self.coords, self.pca_metadata)
 

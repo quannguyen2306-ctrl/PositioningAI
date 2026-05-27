@@ -40,12 +40,6 @@ export interface EvalSummary {
   blue_ocean_opportunities?: BlueOceanOpportunity[];
 }
 
-export interface PcaMeta {
-  source: string;
-  url: string;
-  domain: string;
-}
-
 export interface PcaPoint {
   components: number[];
   source: string;
@@ -118,7 +112,7 @@ export interface AnalysisResult {
   comp_docs: CompDoc[];
   eval: EvalSummary;
   coords: number[][];
-  pca_meta: PcaMeta[];
+  pca_meta: Array<{ source: string; url: string; domain: string }>;
   interps: PcaInterpretation[];
   recs: Recommendations;
   archetype?: Archetype;
@@ -138,14 +132,6 @@ export interface ProgressEvent {
   percent: number;
   message: string;
   status: 'queued' | 'processing' | 'completed' | 'failed';
-}
-
-export interface AnalysisResponse {
-  session_id: string;
-  status: string;
-  result?: AnalysisResult;
-  progress?: ProgressEvent;
-  error?: string;
 }
 
 export interface RecommendationResult {
@@ -184,8 +170,3 @@ export interface RLStepEvent {
   message?: string
 }
 
-export type WsEvent =
-  | { type: 'heartbeat' }
-  | { type: 'progress'; percent: number; message: string }
-  | { type: 'result'; data: AnalysisResult }
-  | { type: 'error'; message: string };

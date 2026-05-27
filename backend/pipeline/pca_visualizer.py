@@ -157,7 +157,7 @@ def plot_2d(
 
     # --- Competitor traces (one trace per domain for legend) ---
     for domain in unique_domains:
-        dm_mask = [d == domain for d in comp_domains]
+        dm_mask = np.array([d == domain for d in comp_domains])
         dm_coords = comp_coords[dm_mask]
         hover_texts = [
             f"<b>{domain}</b><br>PC1: {x:.2f}  PC2: {y:.2f}"

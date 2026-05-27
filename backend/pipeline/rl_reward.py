@@ -27,7 +27,6 @@ import numpy as np
 class RLRewardResult:
     reward: float
     cos_sim: float
-    magnitude_bonus: float
     vis_multiplier: float
     vis_delta: float
     moved_toward_target: bool
@@ -62,12 +61,6 @@ def compute_reward(
     delta_norm = np.linalg.norm(delta) + 1e-8
     cos_sim = float(np.clip(projection / delta_norm, -1.0, 1.0))
 
-    # magnitude_bonus kept for logging (not used in reward anymore)
-    magnitude_bonus = float(np.clip(
-        np.linalg.norm(delta) / (initial_dist + 1e-8),
-        0.0, 1.0,
-    ))
-
     # Visibility multiplier: penalise content that breaks RAG visibility
     vis_delta = vis_curr - vis_prev
     if vis_delta >= 0:
@@ -84,7 +77,6 @@ def compute_reward(
     return RLRewardResult(
         reward=round(reward, 4),
         cos_sim=round(cos_sim, 4),
-        magnitude_bonus=round(magnitude_bonus, 4),
         vis_multiplier=round(vis_multiplier, 3),
         vis_delta=round(vis_delta, 2),
         moved_toward_target=projection > 0,

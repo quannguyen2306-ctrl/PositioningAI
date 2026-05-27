@@ -187,17 +187,22 @@ class RLOrchestrator:
                     best_reward = reward_result.reward
                     best_draft = draft
 
+                _step_delta_norm = float(np.linalg.norm(new_pos - current_pos))
                 current_pos = new_pos
                 current_vis = new_vis
 
                 if event_callback:
+                    _magnitude = float(np.clip(
+                        _step_delta_norm / (initial_dist + 1e-8),
+                        0.0, 1.0,
+                    ))
                     event_callback({
                         "event": "rl_step",
                         "episode_id": self.episode_id,
                         "step": step,
                         "reward": reward_result.reward,
                         "cos_sim": reward_result.cos_sim,
-                        "magnitude": reward_result.magnitude_bonus,
+                        "magnitude": _magnitude,
                         "vis_score": round(new_vis, 2),
                         "vis_delta": reward_result.vis_delta,
                         "pos": new_pos.tolist(),

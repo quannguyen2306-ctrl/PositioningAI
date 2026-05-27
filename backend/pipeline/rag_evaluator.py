@@ -150,7 +150,6 @@ def evaluate_single_question(
         return {
             "question": question,
             "answer": "No content retrieved.",
-            "retrieved_chunks": [],
             "business_mentioned": False,
             "mention_quality": "absent",
             "visibility_score": 0,
@@ -212,7 +211,6 @@ def evaluate_single_question(
     return {
         "question": question,
         "answer": answer,
-        "retrieved_chunks": retrieved,
         "business_mentioned": business_mentioned,
         "mention_quality": eval_data.get("mention_quality", "absent"),
         "visibility_score": eval_data.get("visibility_score", 0),
@@ -234,7 +232,6 @@ def run_evaluation(
     store: EmbeddingStore,
     client: OpenAI,
     business_name: str,
-    progress_callback=None,
 ) -> dict:
     """
     Run all questions through the RAG evaluator in parallel using ThreadPoolExecutor.
@@ -256,7 +253,6 @@ def run_evaluation(
                 results_map[q] = {
                     "question": q,
                     "answer": f"Evaluation failed: {exc}",
-                    "retrieved_chunks": [],
                     "business_mentioned": False,
                     "mention_quality": "absent",
                     "visibility_score": 0,
@@ -268,8 +264,6 @@ def run_evaluation(
                     "is_blue_ocean": False,
                 }
             completed += 1
-            if progress_callback:
-                progress_callback(completed, len(questions))
 
     # Preserve original question order
     results = [results_map[q] for q in questions if q in results_map]

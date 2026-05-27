@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowRight, Waves } from 'lucide-react'
 import { useAnalysis } from '../contexts/AnalysisContext'
+import type { SessionRecord } from '../contexts/AnalysisContext'
 import type { AnalysisRequest } from '../api/types'
 
 const BUBBLES = Array.from({ length: 18 }, (_, i) => ({
@@ -38,6 +39,18 @@ export default function HomePage() {
 
   const canSubmit = url.trim() && openaiKey.trim() && serperKey.trim() && !loading
 
+  const runAnalysis = async (req: AnalysisRequest) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const sid = await startAnalysis(req)
+      navigate(`/results/${sid}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
@@ -45,10 +58,7 @@ export default function HomePage() {
     localStorage.setItem('openai_key', openaiKey)
     localStorage.setItem('serper_key', serperKey)
 
-    setLoading(true)
-    setError(null)
-
-    const req: AnalysisRequest = {
+    await runAnalysis({
       url: url.trim(),
       openai_key: openaiKey.trim(),
       serper_key: serperKey.trim(),
@@ -57,15 +67,31 @@ export default function HomePage() {
       custom_questions: customQs
         ? customQs.split('\n').map(q => q.trim()).filter(Boolean)
         : undefined,
-    }
+    })
+  }
 
-    try {
-      const sid = await startAnalysis(req)
-      navigate(`/results/${sid}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-      setLoading(false)
+  // Recent dive click: restore from the in-memory cache if present (same tab
+  // session); otherwise the full result is gone (e.g. after a reload), so
+  // re-run the analysis using the stored keys + current settings.
+  const handleRestore = (s: SessionRecord) => {
+    if (restoreSession(s)) {
+      navigate(`/results/${s.id}`)
+      return
     }
+    const ok = openaiKey.trim() || localStorage.getItem('openai_key') || ''
+    const sk = serperKey.trim() || localStorage.getItem('serper_key') || ''
+    if (!ok || !sk) {
+      setUrl(s.businessUrl)
+      setError('Saved results expired on reload — keys missing, fill them in to re-run.')
+      return
+    }
+    runAnalysis({
+      url: s.businessUrl,
+      openai_key: ok,
+      serper_key: sk,
+      n_competitors: nCompetitors,
+      n_questions: nQuestions,
+    })
   }
 
   return (
@@ -280,7 +306,7 @@ export default function HomePage() {
               {sessionHistory.slice(0, 3).map(s => (
                 <button
                   key={s.id}
-                  onClick={() => { restoreSession(s); navigate(`/results/${s.id}`) }}
+                  onClick={() => handleRestore(s)}
                   className="glass-light w-full flex items-center justify-between px-3.5 py-2.5 text-left cursor-pointer"
                   style={{ border: 'none', color: 'var(--text-secondary)' }}
                 >
