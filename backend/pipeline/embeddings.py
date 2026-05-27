@@ -113,20 +113,30 @@ class EmbeddingStore:
                 }
             )
 
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """
+        Embed many query texts in a single batched round-trip (one OpenAI call
+        for up to BATCH_SIZE texts), so the evaluator can precompute all query
+        vectors instead of embedding one question at a time.
+        """
+        return self._embed_all(texts)
+
     def query(self, query_text: str, k: int = 10) -> list[dict]:
         """
         Return top-k chunks most similar to query_text.
         Each result: {text, source, url, domain, score (0-1)}.
         """
+        return self.query_by_vector(self._embed_batch([query_text])[0], k)
+
+    def query_by_vector(self, query_emb, k: int = 10) -> list[dict]:
+        """Top-k chunks for a precomputed query embedding (no embed call)."""
         n_stored = self.collection.count()
         if n_stored == 0:
             return []
 
         k = min(k, n_stored)
-        query_emb = self._embed_batch([query_text])[0]
-
         results = self.collection.query(
-            query_embeddings=[query_emb],
+            query_embeddings=[np.asarray(query_emb, dtype=float).tolist()],
             n_results=k,
             include=["documents", "metadatas", "distances"],
         )
@@ -276,12 +286,20 @@ class EmbeddingOverlay:
             if chunks else np.empty((0, 0), dtype=np.float32)
         )
 
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """Batch-embed query texts via the base store (single round-trip)."""
+        return self._base._embed_all(texts)
+
     def query(self, query_text: str, k: int = 10) -> list[dict]:
         """Top-k chunks by cosine similarity to query_text (in-memory)."""
+        return self.query_by_vector(self._base._embed_batch([query_text])[0], k)
+
+    def query_by_vector(self, query_emb, k: int = 10) -> list[dict]:
+        """Top-k chunks for a precomputed query embedding (in-memory cosine)."""
         if not self._chunks:
             return []
 
-        q = np.array(self._base._embed_batch([query_text])[0], dtype=np.float32)
+        q = np.asarray(query_emb, dtype=np.float32)
         q_norm = q / (np.linalg.norm(q) + 1e-8)
         m_norm = self._matrix / (
             np.linalg.norm(self._matrix, axis=1, keepdims=True) + 1e-8
