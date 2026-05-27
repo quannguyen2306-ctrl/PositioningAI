@@ -77,22 +77,24 @@ class RLEnvironment:
     def step(self, draft_text: str) -> EnvStepResult:
         """
         Apply a content draft and return the resulting environment state.
-        Modifies the embedding store in-place (replaces user chunks).
+
+        Operates on a per-step overlay layered over the immutable base store, so
+        the original analysis state is never mutated and concurrent episodes
+        stay isolated (Option C: original snapshot + draft).
         """
         chunks = chunk_text(draft_text)
         if not chunks:
             chunks = [draft_text[:2000]]
 
-        # Restore original content + add this draft alongside it (Option C).
-        self.store.restore_snapshot_and_add_draft(chunks)
+        overlay = self.store.make_overlay(chunks)
 
-        embeddings, meta = self.store.get_all_for_pca()
+        embeddings, meta = overlay.get_all_for_pca()
         coords = self._project(embeddings)
         pos = self._user_centroid(coords, meta)
 
         eval_results = run_evaluation(
             self.questions,
-            self.store,
+            overlay,
             self.client,
             self.business_context.get("business_name", "Business"),
         )
