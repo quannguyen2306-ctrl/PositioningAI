@@ -5,19 +5,29 @@ const SESSION_KEY_PREFIX = 'posai_session_'
 const MAX_SESSIONS = 10
 const TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
+/**
+ * Persisted (slim) session summary — what survives in localStorage. The heavy
+ * AnalysisResult (coords, comp_docs, recs) is deliberately NOT stored here so
+ * saved history can't approach the localStorage quota on large maps.
+ */
 export interface SessionRecord {
   id: string
   timestamp: number
   expiresAt: number
   businessUrl: string
   overallScore: number
-  results: AnalysisResult
 }
+
+/**
+ * Full results live in memory only, for the lifetime of this tab session.
+ * Restoring a dive after a reload (cache miss) re-runs the analysis instead.
+ */
+const fullResultCache = new Map<string, AnalysisResult>()
 
 export interface UseSessionStorageReturn {
   sessions: SessionRecord[]
   saveSession: (id: string, businessUrl: string, overallScore: number, results: AnalysisResult) => void
-  loadSession: (id: string) => SessionRecord | null
+  getFullResult: (id: string) => AnalysisResult | undefined
   deleteSession: (id: string) => void
   clearAll: () => void
 }
@@ -72,9 +82,9 @@ export default function useSessionStorage(): UseSessionStorageReturn {
           expiresAt: now + TTL_MS,
           businessUrl,
           overallScore,
-          results,
         }
         localStorage.setItem(SESSION_KEY_PREFIX + id, JSON.stringify(record))
+        fullResultCache.set(id, results)
 
         setSessions((prev) => {
           const updated = [record, ...prev.filter((s) => s.id !== id)]
@@ -92,23 +102,14 @@ export default function useSessionStorage(): UseSessionStorageReturn {
     []
   )
 
-  const loadSession = useCallback((id: string): SessionRecord | null => {
-    try {
-      const data = localStorage.getItem(SESSION_KEY_PREFIX + id)
-      if (!data) return null
-      const record = JSON.parse(data) as SessionRecord
-      if (record.expiresAt <= Date.now()) {
-        try { localStorage.removeItem(SESSION_KEY_PREFIX + id) } catch { /* ignore */ }
-        return null
-      }
-      return record
-    } catch {
-      return null
-    }
-  }, [])
+  const getFullResult = useCallback(
+    (id: string): AnalysisResult | undefined => fullResultCache.get(id),
+    []
+  )
 
   const deleteSession = useCallback((id: string) => {
     try { localStorage.removeItem(SESSION_KEY_PREFIX + id) } catch { /* ignore */ }
+    fullResultCache.delete(id)
     setSessions((prev) => prev.filter((s) => s.id !== id))
   }, [])
 
@@ -116,10 +117,11 @@ export default function useSessionStorage(): UseSessionStorageReturn {
     setSessions((prev) => {
       prev.forEach((s) => {
         try { localStorage.removeItem(SESSION_KEY_PREFIX + s.id) } catch { /* ignore */ }
+        fullResultCache.delete(s.id)
       })
       return []
     })
   }, [])
 
-  return { sessions, saveSession, loadSession, deleteSession, clearAll }
+  return { sessions, saveSession, getFullResult, deleteSession, clearAll }
 }

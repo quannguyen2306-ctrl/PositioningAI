@@ -181,20 +181,6 @@ def stream_rl_episode(episode_id: str, session_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Step 4: Check the episode store stats
-# ---------------------------------------------------------------------------
-
-def check_episode_store():
-    print(f"\n=== Step 4: Episode store stats ===")
-    resp = requests.get(f"{BASE_URL}/api/rl/episode-store/stats")
-    resp.raise_for_status()
-    stats = resp.json()
-    print(f"  Total stored episodes: {stats.get('total', 0)}")
-    print(f"  Avg best reward: {stats.get('avg_best_reward', 0)}")
-    print(f"  Industries covered: {stats.get('industries', [])}")
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -210,7 +196,6 @@ if __name__ == "__main__":
         session_id = run_analysis()
         episode_id = start_rl_episode(session_id)
         stream_rl_episode(episode_id, session_id)
-        check_episode_store()
     except requests.exceptions.ConnectionError:
         print("\nERROR: Could not connect to backend. Is it running?")
         print("  Start it with: cd backend && python app.py")

@@ -10,6 +10,8 @@ then builds Plotly 2D and 3D scatter charts with:
 """
 
 import json
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -79,9 +81,7 @@ def interpret_dimensions(
     Returns list of interpretation dicts (one per component), each with:
       dimension_name, positive_end, negative_end, explanation, variance_explained
     """
-    interpretations: list[dict] = []
-
-    for dim_idx in range(pca.n_components_):
+    def _interpret_axis(dim_idx: int) -> dict:
         dim_scores = coords[:, dim_idx]
 
         top_pos_idx = np.argsort(dim_scores)[-n_samples:][::-1]
@@ -113,9 +113,11 @@ def interpret_dimensions(
         interp["variance_explained"] = round(
             pca.explained_variance_ratio_[dim_idx] * 100, 1
         )
-        interpretations.append(interp)
+        return interp
 
-    return interpretations
+    # One LLM call per axis, issued concurrently; map preserves axis order.
+    with ThreadPoolExecutor(max_workers=pca.n_components_) as executor:
+        return list(executor.map(_interpret_axis, range(pca.n_components_)))
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +159,7 @@ def plot_2d(
 
     # --- Competitor traces (one trace per domain for legend) ---
     for domain in unique_domains:
-        dm_mask = [d == domain for d in comp_domains]
+        dm_mask = np.array([d == domain for d in comp_domains])
         dm_coords = comp_coords[dm_mask]
         hover_texts = [
             f"<b>{domain}</b><br>PC1: {x:.2f}  PC2: {y:.2f}"

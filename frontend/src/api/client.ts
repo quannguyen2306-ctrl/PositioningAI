@@ -15,8 +15,6 @@ const BASE = import.meta.env.VITE_API_URL ?? ''
 
 const STALL_TIMEOUT_MS = 120_000 // 2 minutes without any SSE event → give up
 
-export type { PcaPoint }
-
 export interface SseCallbacks {
   onProgress: (pct: number, step: string) => void
   onProfile: (data: BusinessProfile) => void

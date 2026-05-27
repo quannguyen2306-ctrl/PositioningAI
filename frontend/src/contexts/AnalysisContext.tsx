@@ -32,7 +32,7 @@ interface AnalysisContextType {
   contentLabError: string | null
   startAnalysis: (req: AnalysisRequest) => Promise<string>
   clearSession: () => void
-  restoreSession: (record: SessionRecord) => void
+  restoreSession: (record: SessionRecord) => boolean
   deleteSession: (id: string) => void
   clearAllSessions: () => void
   setProgress: (progress: ProgressEvent) => void
@@ -56,7 +56,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [contentLabLoading, setContentLabLoading] = useState(false)
   const [contentLabError, setContentLabError] = useState<string | null>(null)
 
-  const { sessions: sessionHistory, saveSession, deleteSession, clearAll: clearAllSessions } = useSessionStorage()
+  const { sessions: sessionHistory, saveSession, getFullResult, deleteSession, clearAll: clearAllSessions } = useSessionStorage()
 
   const abortRef = useRef<(() => void) | null>(null)
   const openaiKeyRef = useRef<string>('')
@@ -165,19 +165,24 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     setContentLabError(null)
   }, [])
 
-  const restoreSession = useCallback((record: SessionRecord) => {
+  const restoreSession = useCallback((record: SessionRecord): boolean => {
+    // Full results live in memory only (slim summary is all that's persisted).
+    // After a reload the cache is empty, so the caller should re-run instead.
+    const full = getFullResult(record.id)
+    if (!full) return false
     if (abortRef.current) {
       abortRef.current()
       abortRef.current = null
     }
     setSessionId(record.id)
-    setResults(record.results)
+    setResults(full)
     setProgress(null)
     setError(null)
     setAnalysisRequest(null)
     setContentLabResult(null)
     setContentLabError(null)
-  }, [])
+    return true
+  }, [getFullResult])
 
   const submitToContentLab = useCallback(async (newContent: string) => {
     if (!backendSessionId) {

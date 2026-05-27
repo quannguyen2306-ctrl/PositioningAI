@@ -38,6 +38,11 @@ class EmbeddingStore:
         # Parallel list to ChromaDB for PCA (holds numpy vectors)
         self._all_chunks: list[dict] = []
 
+        # Capped snapshot of the original user chunks, used as the immutable
+        # identity anchor for RL draft overlays. Initialized here so the
+        # overlay contract is structural, not an implicit "call save first".
+        self._user_snapshot: list[dict] = []
+
     # ------------------------------------------------------------------
     # Embedding helpers
     # ------------------------------------------------------------------
@@ -108,20 +113,30 @@ class EmbeddingStore:
                 }
             )
 
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """
+        Embed many query texts in a single batched round-trip (one OpenAI call
+        for up to BATCH_SIZE texts), so the evaluator can precompute all query
+        vectors instead of embedding one question at a time.
+        """
+        return self._embed_all(texts)
+
     def query(self, query_text: str, k: int = 10) -> list[dict]:
         """
         Return top-k chunks most similar to query_text.
         Each result: {text, source, url, domain, score (0-1)}.
         """
+        return self.query_by_vector(self._embed_batch([query_text])[0], k)
+
+    def query_by_vector(self, query_emb, k: int = 10) -> list[dict]:
+        """Top-k chunks for a precomputed query embedding (no embed call)."""
         n_stored = self.collection.count()
         if n_stored == 0:
             return []
 
         k = min(k, n_stored)
-        query_emb = self._embed_batch([query_text])[0]
-
         results = self.collection.query(
-            query_embeddings=[query_emb],
+            query_embeddings=[np.asarray(query_emb, dtype=float).tolist()],
             n_results=k,
             include=["documents", "metadatas", "distances"],
         )
@@ -194,68 +209,19 @@ class EmbeddingStore:
             indices = [int(i * step) for i in range(self._SNAPSHOT_CAP)]
             self._user_snapshot = [all_user[i] for i in indices]
 
-    def restore_snapshot_and_add_draft(self, draft_chunks: list[str]) -> None:
+    def make_overlay(self, draft_chunks: list[str]) -> "EmbeddingOverlay":
         """
-        Option-C RL step helper — balanced centroid weighting:
-          1. Remove all current user chunks from store.
-          2. Re-insert the capped original snapshot without re-embedding.
-          3. Embed draft chunks and add them _DRAFT_REPEAT times so their
-             weight roughly matches the snapshot size.
+        Build a read-only query view for one RL step: competitor chunks from
+        this (immutable) base + the capped user snapshot + the draft layered on
+        top, without mutating the base store. Each episode holds its own
+        overlay, so concurrent episodes — or an analysis run after an episode —
+        cannot corrupt each other's state.
 
-        Result: centroid ≈ 50% original identity + 50% new draft signal,
-        giving the agent a meaningful gradient to follow each step.
+        Option-C weighting is preserved: the draft is embedded once and repeated
+        _DRAFT_REPEAT times so the user centroid is ≈ 50% original identity +
+        50% new draft signal.
         """
-        # --- 1. Remove current user chunks ---
-        try:
-            self.collection.delete(where={"source": "user"})
-        except Exception:
-            pass
-        self._all_chunks = [c for c in self._all_chunks if c["source"] != "user"]
-
-        # --- 2. Re-insert snapshot (no API call needed) ---
-        if self._user_snapshot:
-            snap_ids = [str(uuid.uuid4()) for _ in self._user_snapshot]
-            snap_embs = [s["embedding"] for s in self._user_snapshot]
-            snap_docs = [s["text"] for s in self._user_snapshot]
-            snap_metas = [
-                {
-                    "source": "user",
-                    "url": s["url"],
-                    "domain": s["domain"],
-                    "chunk_idx": i,
-                }
-                for i, s in enumerate(self._user_snapshot)
-            ]
-            self.collection.add(
-                ids=snap_ids,
-                embeddings=snap_embs,
-                documents=snap_docs,
-                metadatas=snap_metas,
-            )
-            for item in self._user_snapshot:
-                self._all_chunks.append(dict(item))
-
-        # --- 3. Embed draft chunks and repeat _DRAFT_REPEAT times ---
-        if draft_chunks:
-            draft_embs = self._embed_all(draft_chunks)
-            repeated_chunks = draft_chunks * self._DRAFT_REPEAT
-            repeated_embs = draft_embs * self._DRAFT_REPEAT
-            rep_ids = [str(uuid.uuid4()) for _ in repeated_chunks]
-            rep_metas = [
-                {"source": "user", "url": "rl-draft", "domain": "", "chunk_idx": i}
-                for i in range(len(repeated_chunks))
-            ]
-            self.collection.add(
-                ids=rep_ids,
-                embeddings=repeated_embs,
-                documents=repeated_chunks,
-                metadatas=rep_metas,
-            )
-            for chunk, emb in zip(repeated_chunks, repeated_embs):
-                self._all_chunks.append({
-                    "text": chunk, "embedding": emb,
-                    "source": "user", "url": "rl-draft", "domain": "",
-                })
+        return EmbeddingOverlay(self, draft_chunks)
 
     def get_all_for_pca(self) -> tuple[np.ndarray, list[dict]]:
         """
@@ -274,5 +240,97 @@ class EmbeddingStore:
                 "text": d["text"],
             }
             for d in self._all_chunks
+        ]
+        return embeddings, metadata
+
+
+class EmbeddingOverlay:
+    """
+    Immutable-base + draft-overlay view used by a single RL step.
+
+    Composes its chunk set once, in memory, from:
+      - the base store's competitor chunks (shared, never mutated),
+      - the base store's capped user snapshot (Option-C identity anchor),
+      - the draft chunks, embedded once and repeated _DRAFT_REPEAT times.
+
+    Exposes the same ``query`` / ``get_all_for_pca`` surface the evaluator and
+    PCA projection consume, so it is a drop-in for ``EmbeddingStore`` at a step
+    boundary. Querying is an in-memory cosine search over the composed set —
+    the base ChromaDB collection is read for its vectors only, never written.
+    """
+
+    def __init__(self, base: "EmbeddingStore", draft_chunks: list[str]):
+        self._base = base
+
+        # Competitor chunks + capped snapshot are referenced read-only; copy the
+        # dicts so downstream code can't mutate the base's lists through us.
+        chunks: list[dict] = [
+            dict(c) for c in base._all_chunks if c["source"] == "competitor"
+        ]
+        chunks += [dict(s) for s in base._user_snapshot]
+
+        # Draft: embed once, repeat for balanced centroid weighting.
+        if draft_chunks:
+            draft_embs = base._embed_all(draft_chunks)
+            repeated = draft_chunks * base._DRAFT_REPEAT
+            repeated_embs = draft_embs * base._DRAFT_REPEAT
+            for text, emb in zip(repeated, repeated_embs):
+                chunks.append({
+                    "text": text, "embedding": emb,
+                    "source": "user", "url": "rl-draft", "domain": "",
+                })
+
+        self._chunks = chunks
+        self._matrix = (
+            np.array([c["embedding"] for c in chunks], dtype=np.float32)
+            if chunks else np.empty((0, 0), dtype=np.float32)
+        )
+
+    def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """Batch-embed query texts via the base store (single round-trip)."""
+        return self._base._embed_all(texts)
+
+    def query(self, query_text: str, k: int = 10) -> list[dict]:
+        """Top-k chunks by cosine similarity to query_text (in-memory)."""
+        return self.query_by_vector(self._base._embed_batch([query_text])[0], k)
+
+    def query_by_vector(self, query_emb, k: int = 10) -> list[dict]:
+        """Top-k chunks for a precomputed query embedding (in-memory cosine)."""
+        if not self._chunks:
+            return []
+
+        q = np.asarray(query_emb, dtype=np.float32)
+        q_norm = q / (np.linalg.norm(q) + 1e-8)
+        m_norm = self._matrix / (
+            np.linalg.norm(self._matrix, axis=1, keepdims=True) + 1e-8
+        )
+        sims = m_norm @ q_norm
+
+        k = min(k, len(self._chunks))
+        top = np.argsort(-sims)[:k]
+        return [
+            {
+                "text": self._chunks[i]["text"],
+                "source": self._chunks[i]["source"],
+                "url": self._chunks[i].get("url", ""),
+                "domain": self._chunks[i].get("domain", ""),
+                "score": round(float(sims[i]), 4),
+            }
+            for i in top
+        ]
+
+    def get_all_for_pca(self) -> tuple[np.ndarray, list[dict]]:
+        """All composed vectors + metadata, for projection through the frozen PCA."""
+        embeddings = np.array(
+            [c["embedding"] for c in self._chunks], dtype=np.float32
+        )
+        metadata = [
+            {
+                "source": c["source"],
+                "url": c.get("url", ""),
+                "domain": c.get("domain", ""),
+                "text": c["text"],
+            }
+            for c in self._chunks
         ]
         return embeddings, metadata

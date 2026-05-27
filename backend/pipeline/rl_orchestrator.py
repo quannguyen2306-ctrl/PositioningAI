@@ -5,7 +5,8 @@ Episode loop: generate → evaluate → reward → refine → repeat.
 
 Stopping conditions (whichever triggers first):
   1. Proximity  — user centroid within proximity_threshold of target
-  2. Plateau    — best reward in last 3 steps differs by < plateau_eps
+  2. Plateau    — best reward over the trailing window fails to beat the prior
+                  best by at least plateau_eps (see rl_reward.is_plateau)
   3. Max steps  — hard cost ceiling
 """
 
@@ -15,8 +16,9 @@ from dataclasses import dataclass, field
 import numpy as np
 from openai import OpenAI
 
-from pipeline.rl_reward import compute_reward, is_converged
+from pipeline.rl_reward import compute_reward, is_converged, is_plateau
 from pipeline.rl_env import RLEnvironment
+from pipeline.handoff import PipelineHandoff
 from pipeline.rl_agent import RLAgent, RLStepRecord
 from pipeline.nn_policy import NNPolicy, TrajectoryStep, build_state
 from cache.episode_store import (
@@ -48,13 +50,13 @@ class RLEpisodeResult:
 class RLOrchestrator:
     def __init__(
         self,
-        pipeline_data: dict,
+        handoff: PipelineHandoff,
         openai_client: OpenAI,
         episode_id: str,
         config: RLConfig = None,
         nn_policy: NNPolicy | None = None,
     ):
-        self.pipeline_data = pipeline_data
+        self.handoff = handoff
         self.client = openai_client
         self.episode_id = episode_id
         self.config = config or RLConfig()
@@ -65,17 +67,19 @@ class RLOrchestrator:
         target_pos: np.ndarray,
         event_callback=None,
     ) -> RLEpisodeResult:
-        env = RLEnvironment(self.pipeline_data, self.client)
-        business_context = self.pipeline_data["business_context"]
-        interpretations = self.pipeline_data.get("interpretations", [])
+        env = RLEnvironment(self.handoff, self.client)
+        business_context = self.handoff.business_context
+        interpretations = self.handoff.interpretations
 
         # Baseline state before any RL steps
         initial_pos = env.get_current_position()
         initial_vis = env.get_current_vis()
         initial_dist = float(np.linalg.norm(target_pos - initial_pos))
 
-        # Find few-shot examples from similar past episodes
-        archetype_name = (self.pipeline_data.get("archetype") or {}).get("name", "")
+        # Find few-shot examples from similar past episodes. The handoff does not
+        # carry an archetype, so few-shot retrieval matches on industry+direction
+        # only (unchanged from the prior dict, which never held an archetype key).
+        archetype_name = ""
         direction = compute_target_direction(
             float(target_pos[0] - initial_pos[0]),
             float(target_pos[1] - initial_pos[1]),
@@ -187,17 +191,22 @@ class RLOrchestrator:
                     best_reward = reward_result.reward
                     best_draft = draft
 
+                _step_delta_norm = float(np.linalg.norm(new_pos - current_pos))
                 current_pos = new_pos
                 current_vis = new_vis
 
                 if event_callback:
+                    _magnitude = float(np.clip(
+                        _step_delta_norm / (initial_dist + 1e-8),
+                        0.0, 1.0,
+                    ))
                     event_callback({
                         "event": "rl_step",
                         "episode_id": self.episode_id,
                         "step": step,
                         "reward": reward_result.reward,
                         "cos_sim": reward_result.cos_sim,
-                        "magnitude": reward_result.magnitude_bonus,
+                        "magnitude": _magnitude,
                         "vis_score": round(new_vis, 2),
                         "vis_delta": reward_result.vis_delta,
                         "pos": new_pos.tolist(),
@@ -207,15 +216,11 @@ class RLOrchestrator:
                         "moved_toward_target": reward_result.moved_toward_target,
                     })
 
-                # Plateau check — only after (max_steps - 2) steps, and only
-                # if the last 3 consecutive steps ALL failed to beat the
-                # all-time best reward. A single improving step resets this.
-                min_steps_before_plateau = max(5, self.config.max_steps - 2)
-                if len(reward_history) >= min_steps_before_plateau:
-                    all_time_best = max(reward_history)
-                    if all(r < all_time_best for r in reward_history[-3:]):
-                        stop_reason = "plateau"
-                        break
+                # Plateau check — stop only when the trailing window has failed
+                # to beat the prior best by at least the configured plateau_eps.
+                if is_plateau(reward_history, self.config.plateau_eps):
+                    stop_reason = "plateau"
+                    break
 
             except Exception as exc:
                 if event_callback:

@@ -5,8 +5,13 @@ Uses the Serper API to find competitor URLs from a search query,
 then fetches and returns their text content.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
 from .ingestion import fetch_url
+
+# Bounded fan-out so one analysis can't exhaust the server's thread pool.
+_FETCH_MAX_WORKERS = 8
 
 SERPER_ENDPOINT = "https://google.serper.dev/search"
 
@@ -59,23 +64,27 @@ def fetch_competitor_docs(
     max_per_doc: int = 8000,  # chars — cap very large pages
 ) -> list[dict]:
     """
-    Scrape text from each competitor URL.
-    Returns list of dicts: {url, text, title}.
-    Silently skips failed fetches (blocked, timeout, etc.).
+    Scrape text from each competitor URL concurrently (bounded pool).
+    Returns list of dicts: {url, text, domain}, in the same order as `urls`.
+    Silently skips failed fetches (blocked, timeout, etc.) and near-empty pages.
     """
-    docs: list[dict] = []
+    if not urls:
+        return []
 
-    for url in urls:
+    def _fetch_one(url: str) -> dict | None:
         try:
             text = fetch_url(url)
-            if len(text) > 150:   # ignore near-empty pages
-                docs.append({
-                    "url": url,
-                    "text": text[:max_per_doc],
-                    "domain": url.replace("https://", "").replace("http://", "").split("/")[0],
-                })
         except Exception:
-            # Gracefully skip — many sites block scrapers
-            continue
+            return None  # gracefully skip — many sites block scrapers
+        if len(text) <= 150:   # ignore near-empty pages
+            return None
+        return {
+            "url": url,
+            "text": text[:max_per_doc],
+            "domain": url.replace("https://", "").replace("http://", "").split("/")[0],
+        }
 
-    return docs
+    workers = min(len(urls), _FETCH_MAX_WORKERS)
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        # executor.map preserves input order; failures/short pages drop out.
+        return [doc for doc in executor.map(_fetch_one, urls) if doc is not None]

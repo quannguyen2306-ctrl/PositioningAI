@@ -136,6 +136,7 @@ Scoring guide:
 
 def evaluate_single_question(
     question: str,
+    query_vector: list[float],
     store: EmbeddingStore,
     client: OpenAI,
     business_name: str,
@@ -143,14 +144,17 @@ def evaluate_single_question(
 ) -> dict:
     """
     Run one RAG cycle for a question and return a visibility report dict.
+
+    `query_vector` is the question's precomputed embedding (all questions are
+    embedded together in one batched call by run_evaluation), so the per-question
+    worker does no embedding round-trip of its own.
     """
-    retrieved = store.query(question, k=k)
+    retrieved = store.query_by_vector(query_vector, k=k)
 
     if not retrieved:
         return {
             "question": question,
             "answer": "No content retrieved.",
-            "retrieved_chunks": [],
             "business_mentioned": False,
             "mention_quality": "absent",
             "visibility_score": 0,
@@ -212,7 +216,6 @@ def evaluate_single_question(
     return {
         "question": question,
         "answer": answer,
-        "retrieved_chunks": retrieved,
         "business_mentioned": business_mentioned,
         "mention_quality": eval_data.get("mention_quality", "absent"),
         "visibility_score": eval_data.get("visibility_score", 0),
@@ -234,7 +237,6 @@ def run_evaluation(
     store: EmbeddingStore,
     client: OpenAI,
     business_name: str,
-    progress_callback=None,
 ) -> dict:
     """
     Run all questions through the RAG evaluator in parallel using ThreadPoolExecutor.
@@ -242,10 +244,15 @@ def run_evaluation(
     """
     results_map: dict[str, dict] = {}
 
+    # Embed all questions in one batched call, then hand each worker its
+    # precomputed vector — one embedding round-trip total instead of one per
+    # question.
+    query_vectors = store.embed_queries(questions)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(questions), 10)) as executor:
         future_to_q = {
-            executor.submit(evaluate_single_question, q, store, client, business_name): q
-            for q in questions
+            executor.submit(evaluate_single_question, q, vec, store, client, business_name): q
+            for q, vec in zip(questions, query_vectors)
         }
         completed = 0
         for future in concurrent.futures.as_completed(future_to_q):
@@ -256,7 +263,6 @@ def run_evaluation(
                 results_map[q] = {
                     "question": q,
                     "answer": f"Evaluation failed: {exc}",
-                    "retrieved_chunks": [],
                     "business_mentioned": False,
                     "mention_quality": "absent",
                     "visibility_score": 0,
@@ -268,8 +274,6 @@ def run_evaluation(
                     "is_blue_ocean": False,
                 }
             completed += 1
-            if progress_callback:
-                progress_callback(completed, len(questions))
 
     # Preserve original question order
     results = [results_map[q] for q in questions if q in results_map]
